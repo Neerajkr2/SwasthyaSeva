@@ -1,0 +1,62 @@
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# ── Python / Backend ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# ── Environment files ─────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Firebase credentials (NEVER commit) ──────────────────────────────────────
+backend/firebase-credentials.json
+*firebase*.json
+
+# ── ML saved models (large binary files — use DVC or artifact store) ──────────
+backend/ml/saved_models/*.joblib
+backend/ml/saved_models/*.pkl
+backend/ml/saved_models/*.pt
+backend/ml/saved_models/*.h5
+# Keep the directory itself
+!backend/ml/saved_models/.gitkeep
+
+# ── Uploads / temp ────────────────────────────────────────────────────────────
+uploads/
+tmp/
+*.tmp
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+.dockerignore
+
+# ── Test / Coverage ───────────────────────────────────────────────────────────
+coverage/
+.pytest_cache/
+htmlcov/
+.nyc_output/

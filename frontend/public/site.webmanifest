@@ -1,0 +1,13 @@
+{
+  "name": "SwasthyaSeva — AI Health Intelligence",
+  "short_name": "SwasthyaSeva",
+  "description": "Understand your health in simple words. AI-powered support for symptoms, reports, and medicines.",
+  "icons": [
+    { "src": "/favicon.svg",          "sizes": "any",      "type": "image/svg+xml" },
+    { "src": "/apple-touch-icon.svg", "sizes": "180x180",  "type": "image/svg+xml" }
+  ],
+  "theme_color": "#0F4C81",
+  "background_color": "#F8FBFD",
+  "display": "standalone",
+  "start_url": "/"
+}

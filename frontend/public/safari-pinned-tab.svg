@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <!-- Single-color silhouette for Safari pinned tabs (color set via mask-icon attr) -->
+  <path d="M 19 19 C 18 8 13 3 1 1 C 3 13 8 18 19 19 Z"/>
+  <path d="M 21 19 C 32 18 37 13 39 1 C 27 3 22 8 21 19 Z"/>
+  <path d="M 19 21 C 18 32 13 37 1 39 C 3 27 8 22 19 21 Z"/>
+  <path d="M 21 21 C 32 22 37 27 39 39 C 27 37 22 32 21 21 Z"/>
+</svg>

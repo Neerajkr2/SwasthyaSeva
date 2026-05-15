@@ -1,0 +1,266 @@
+/* ── Google Fonts ─────────────────────────────────────────────────────────────
+   Plus Jakarta Sans  → body, inputs, buttons, all UI text
+   Playfair Display   → headings (.font-display), logo uses its own class
+   @import must be first — before @tailwind directives — per CSS spec.
+   ─────────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Sora:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design Tokens ────────────────────────────────────────────────────────── */
+:root {
+  --primary:      #0F4C81;
+  --primary-dark: #0a3a63;
+  --primary-lt:   #e8f0f8;
+  --cyan:         #00C2FF;
+  --secondary:    #2ECC71;
+  --accent:       #00C2FF;
+  --warning:      #FF9F43;
+  --danger:       #ef4444;
+  --bg:           #F8FBFD;
+  --text:         #0B1320;
+  --border:       #E6EEF5;
+}
+
+/* ── Reset + base typography ─────────────────────────────────────────────────
+   EVERY element inherits Plus Jakarta Sans.
+   Exception: .logo-font keeps Playfair Display (applied in Navbar/Sidebar).
+   ─────────────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #1e293b;
+  background: #ffffff;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Heading tags use Sora via the utility class applied in JSX */
+.font-display {
+  font-family: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  font-weight: 700;
+}
+
+/* Logo font — Sora bold across ALL pages */
+.logo-font {
+  font-family: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  font-weight: 700;
+}
+
+/* Ensure ALL inputs/buttons/selects use Plus Jakarta Sans */
+input, textarea, select, button {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 5px; height: 5px; }
+::-webkit-scrollbar-track    { background: #f1f5f9; }
+::-webkit-scrollbar-thumb    { background: var(--primary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary-dark); }
+
+/* ── Utility classes ──────────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #0B1320, var(--primary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-text-primary {
+  background: linear-gradient(135deg, var(--primary), var(--cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* ── Page entry animation ─────────────────────────────────────────────────── */
+.page-enter {
+  animation: pageIn .3s ease both;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn-primary {
+  @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-white transition-all duration-300;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: linear-gradient(135deg, var(--primary), #1a6db5);
+  box-shadow: 0 4px 15px rgba(15,76,129,0.25);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(15,76,129,0.35);
+}
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition-all duration-300;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  background: white;
+}
+.btn-secondary:hover {
+  background: var(--primary-lt);
+  transform: translateY(-2px);
+}
+
+/* ── Landing page scroll-reveal ──────────────────────────────────────────── */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+.reveal-up {
+  animation: revealUp 0.7s ease both;
+}
+
+/* ── Soft float for hero decorative elements ────────────────────────────── */
+@keyframes softFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-12px); }
+}
+.soft-float {
+  animation: softFloat 5s ease-in-out infinite;
+}
+
+/* ── Bouncy attention-grabber ───────────────────────────────────────────── */
+@keyframes pulseHero {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+.pulse-hero {
+  animation: pulseHero 2.5s ease-in-out infinite;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
+.card {
+  @apply bg-white rounded-2xl border border-slate-200 transition-all duration-300;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+.card:hover {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.10);
+}
+
+/* ── Input fields ─────────────────────────────────────────────────────────── */
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  background: #ffffff;
+  transition: all 0.2s;
+  outline: none;
+  color: #1e293b;
+}
+.input-field::placeholder { color: #94a3b8; }
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
+}
+
+.input-field-rect {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  background: #ffffff;
+  transition: all 0.2s;
+  outline: none;
+  color: #1e293b;
+}
+.input-field-rect::placeholder { color: #94a3b8; }
+.input-field-rect:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
+}
+.input-field-rect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+/* ── Sidebar nav items ────────────────────────────────────────────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #475569;
+  transition: all 0.2s;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+}
+.nav-item:hover,
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(15,76,129,0.08), rgba(0,194,255,0.04));
+  color: var(--primary);
+}
+
+/* ── Status badges ────────────────────────────────────────────────────────── */
+.status-good    { @apply text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600; }
+.status-warning { @apply text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600; }
+.status-danger  { @apply text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-600; }
+
+/* ── Chat typing dots ─────────────────────────────────────────────────────── */
+.typing-dot {
+  animation: bounceDot 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounceDot {
+  0%, 60%, 100% { transform: translateY(0);    }
+  30%           { transform: translateY(-8px); }
+}
+
+/* ── Shadow helpers ───────────────────────────────────────────────────────── */
+.shadow-glow-primary {
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.2), 0 8px 24px rgba(14,165,233,0.15);
+}
+
+/* ── reCAPTCHA fix ────────────────────────────────────────────────────────── */
+.g-recaptcha, .g-recaptcha > div, .g-recaptcha iframe {
+  display: block !important;
+}
+
+/* ── Hide scrollbar utility ───────────────────────────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Prose (AI message content) ───────────────────────────────────────────── */
+.prose-sm {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}

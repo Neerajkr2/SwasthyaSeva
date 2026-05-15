@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none">
+  <!-- iOS rounded-square backing (premium gradient) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F8FBFD"/>
+      <stop offset="100%" stop-color="#E8F0F8"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#bg)"/>
+  <!-- Logo mark, centered & scaled -->
+  <g transform="translate(40 40) scale(2.5)">
+    <path d="M 19 19 C 18 8 13 3 1 1 C 3 13 8 18 19 19 Z" fill="#0F4C81"/>
+    <path d="M 21 19 C 32 18 37 13 39 1 C 27 3 22 8 21 19 Z" fill="#00C2FF"/>
+    <path d="M 19 21 C 18 32 13 37 1 39 C 3 27 8 22 19 21 Z" fill="#00C2FF"/>
+    <path d="M 21 21 C 32 22 37 27 39 39 C 27 37 22 32 21 21 Z" fill="#0F4C81"/>
+  </g>
+</svg>
