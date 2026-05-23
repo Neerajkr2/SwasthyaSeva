@@ -1,5 +1,6 @@
 # backend/routes/ml.py
 import uuid, logging, mimetypes, base64
+from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from database import get_db
 from models.user import UserVitals, MedicalReport
 from schemas.schemas import (
-    SymptomRequest, SymptomResult,
+    SymptomRequest, SymptomResult, SymptomSelectRequest,
     RiskRequest, RiskResult,
     DrugRequest, DrugResult,
     ReportAnalysisResult,
@@ -24,12 +25,133 @@ ALLOWED  = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 def _predictor(r):    return r.app.state.disease_predictor
 def _analyzer(r):     return r.app.state.symptom_analyzer
 def _checker(r):      return r.app.state.drug_checker
+def _nb(r):
+    nb = r.app.state.nb_predictor
+    if nb is None:
+        raise HTTPException(503, "NB Predictor is unavailable — model files may be missing.")
+    return nb
 
 
+# ── Helper: bridge NB output → SymptomResult ─────────────────────────────────
+def _nb_to_symptom_result(raw: Dict[str, Any], selected: List[str]) -> Dict[str, Any]:
+    """
+    Convert the NBPredictor output dict into the SymptomResult schema format
+    so the frontend can consume it identically to the text-based analysis.
+    """
+    from ml.symptom_analyzer import (
+        _detect_urgency, _urgency_recommendation,
+        _get_self_care, _get_follow_up_questions, _generate_recovery_plan,
+        FOOD_GUIDANCE, DEFAULT_FOOD_GUIDANCE,
+    )
+    from ml.nb_predictor import get_body_system, get_specialist
+
+    diseases = raw.get("diseases", [])
+    matched  = raw.get("matched_symptoms", [])
+
+    # Build conditions list ────────────────────────────────────────────────────
+    conditions: List[Dict[str, Any]] = []
+    for d in diseases[:6]:
+        name  = d["name"]
+        score = d["probability"]
+        body  = get_body_system(name)
+        conditions.append({"label": name, "score": round(score, 3), "body_system": body})
+
+    # Derive urgency from matched symptom text ─────────────────────────────────
+    symptom_text = " ".join(matched or selected)
+    urgency      = _detect_urgency(symptom_text)
+
+    # Build specialist list (deduplicated) ────────────────────────────────────
+    seen_specs: set  = set()
+    specialists: List[str] = []
+    for c in conditions[:3]:
+        spec = get_specialist(c["label"], c["body_system"])
+        if spec not in seen_specs:
+            seen_specs.add(spec)
+            specialists.append(spec)
+    if not specialists:
+        specialists = ["General Physician"]
+
+    body_systems = list(dict.fromkeys(c["body_system"] for c in conditions))
+
+    # Food guidance — look up by body system directly (NB disease names differ
+    # from symptom_analyzer's CONDITION_BODY_SYSTEM keys, so we skip that lookup)
+    primary_system   = body_systems[0] if body_systems else ""
+    food_guidance    = FOOD_GUIDANCE.get(primary_system, DEFAULT_FOOD_GUIDANCE)
+
+    return {
+        "conditions":          conditions,
+        "urgency":             urgency,
+        "recommendation":      _urgency_recommendation(urgency),
+        "body_systems":        body_systems,
+        "self_care":           _get_self_care(conditions, urgency),
+        "food_guidance":       food_guidance,
+        "specialists":         specialists,
+        "recovery_plan":       _generate_recovery_plan(conditions, urgency),
+        "follow_up_questions": _get_follow_up_questions(symptom_text),
+        "disclaimer": (
+            "AI-generated analysis powered by clinical NB classifier. "
+            "Does NOT constitute a medical diagnosis. Consult a licensed physician."
+        ),
+    }
+
+
+# ── Existing text-based symptom endpoint ─────────────────────────────────────
 @router.post("/symptoms", response_model=SymptomResult)
 async def analyze_symptoms(body: SymptomRequest, request: Request,
                             user_id: str = Depends(get_current_user_id)):
     return SymptomResult(**_analyzer(request).analyze(body.symptoms))
+
+
+# ── NEW: return the canonical 377-feature symptom list ───────────────────────
+@router.get("/symptom-list")
+async def get_symptom_list(request: Request,
+                            user_id: str = Depends(get_current_user_id)):
+    """Returns the full canonical clinical feature list (377 symptoms) for
+    the interactive symptom selection panel in the frontend."""
+    nb = _nb(request)
+    return {"symptoms": nb.get_symptom_list(), "total": len(nb.get_symptom_list())}
+
+
+# ── NEW: selection-based analysis via NB model ───────────────────────────────
+@router.post("/symptoms/select", response_model=SymptomResult)
+async def analyze_by_selection(
+    body:    SymptomSelectRequest,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+):
+    """
+    Accepts a list of symptom strings (selected from the canonical clinical list),
+    runs inference through the Multinomial Naive Bayes model, and returns a full
+    SymptomResult (identical schema to the text-based /symptoms endpoint) so the
+    frontend result view works unchanged.
+    """
+    nb  = _nb(request)
+    raw = nb.predict(body.symptoms)
+
+    if raw["type"] == "insufficient_data":
+        # Return a well-formed but low-confidence result rather than a 422
+        return SymptomResult(
+            conditions=[],
+            urgency="low",
+            recommendation="Please add more symptoms for a more accurate analysis.",
+            body_systems=[],
+            self_care={
+                "immediate": ["Add more specific symptoms and try again."],
+                "otc_meds":  [],
+                "warning_signs": ["Seek medical advice if symptoms are severe or worsening."],
+            },
+            food_guidance={},
+            specialists=["General Physician"],
+            recovery_plan={},
+            follow_up_questions=[],
+            disclaimer=(
+                "Insufficient symptom data for confident prediction. "
+                "Please select more symptoms or describe them in the chat."
+            ),
+        )
+
+    mapped = _nb_to_symptom_result(raw, body.symptoms)
+    return SymptomResult(**mapped)
 
 
 @router.post("/risk", response_model=RiskResult)

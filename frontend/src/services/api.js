@@ -50,10 +50,18 @@ export const authAPI = {
 
 // ── ML / AI ───────────────────────────────────────────────────────────────────
 export const mlAPI = {
-  analyzeSymptoms:      (symptoms)     => api.post('/ml/symptoms', { symptoms }),
-  predictRisk:          (params)       => api.post('/ml/risk',     params),
-  checkDrugInteraction: (drugs)        => api.post('/ml/drugs',    { drugs }),
-  analyzeReport:        (formData)     => api.post('/ml/report',   formData, {
+  // Text-based free-form symptom analysis (existing flow)
+  analyzeSymptoms:      (symptoms)     => api.post('/ml/symptoms',         { symptoms }),
+
+  // NEW: fetch canonical 377-feature symptom list for the selection panel
+  getSymptomList:       ()             => api.get('/ml/symptom-list'),
+
+  // NEW: selection-based NB analysis — symptoms is string[] from the canonical list
+  analyzeSymptomsList:  (symptoms)     => api.post('/ml/symptoms/select',  { symptoms }),
+
+  predictRisk:          (params)       => api.post('/ml/risk',             params),
+  checkDrugInteraction: (drugs)        => api.post('/ml/drugs',            { drugs }),
+  analyzeReport:        (formData)     => api.post('/ml/report',           formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 120000,
   }),

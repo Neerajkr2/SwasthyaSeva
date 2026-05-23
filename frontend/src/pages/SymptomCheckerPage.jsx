@@ -1,23 +1,28 @@
 // src/pages/SymptomCheckerPage.jsx
 /**
- * Symptom Checker — premium redesign.
+ * Symptom Checker — ML-integrated redesign.
  *
  * Three modes (`step` state):
- *   1. 'chat'      — conversational input with a live analysis sidebar
+ *   1. 'chat'      — chat input (left) + interactive symptom selection panel (right)
  *   2. 'analyzing' — full-width AI scanning animation
  *   3. 'result'    — tabbed diagnostic dashboard (Severity, Conditions,
  *                    Self-care, Food, Recovery, Doctors)
  *
- * All visuals, typography, and interactions follow the SwasthyaSeva
- * design system (Sora display · Plus Jakarta body · #0F4C81 / #00C2FF /
- * #2ECC71 / #FF9F43 brand palette · rounded-2xl cards · soft hairline).
+ * Two analysis paths:
+ *   A. Type symptoms in chat → POST /ml/symptoms (BART/rule-based)
+ *   B. Select from 377-feature panel → POST /ml/symptoms/select (Naive Bayes)
+ *
+ * Both paths produce an identical SymptomResult, feeding the same result tabs.
+ *
+ * Design tokens: Sora display · Plus Jakarta body · #0F4C81 / #00C2FF /
+ * #2ECC71 / #FF9F43 · rounded-2xl cards · soft #E6EEF5 hairline.
  */
-import { useState, useRef, useEffect, memo } from 'react'
+import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FiAlertTriangle, FiZap, FiSend, FiHeart, FiActivity, FiShield,
-  FiClock, FiUser, FiChevronRight, FiRefreshCw, FiMic,
+  FiClock, FiUser, FiChevronRight, FiRefreshCw, FiMic, FiSearch, FiX,
 } from 'react-icons/fi'
 import { mlAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
@@ -64,6 +69,37 @@ const RESULT_TABS = [
 ]
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Embedded symptom fallback (subset — full 377 list loaded from API)
+   ═══════════════════════════════════════════════════════════════════════ */
+const EMBEDDED_SYMPTOMS = [
+  'anxiety and nervousness','depression','shortness of breath','sharp chest pain',
+  'dizziness','insomnia','chest tightness','palpitations','irregular heartbeat',
+  'breathing fast','hoarse voice','sore throat','cough','nasal congestion',
+  'throat swelling','skin swelling','leg pain','hip pain','blood in stool',
+  'flatulence','jaundice','vomiting','headache','nausea','diarrhea',
+  'painful urination','frequent urination','lower abdominal pain','blood in urine',
+  'hot flashes','wrist pain','arm pain','lip swelling','toothache',
+  'abnormal appearing skin','skin lesion','acne or pimples','dry lips',
+  'facial pain','mouth ulcer','skin growth','diminished vision','double vision',
+  'pain in eye','swollen lymph nodes','back pain','neck pain','low back pain',
+  'pelvic pain','vomiting blood','burning abdominal pain','restlessness','wheezing',
+  'peripheral edema','neck mass','ear pain','jaw swelling','neck swelling',
+  'knee pain','foot or toe pain','ankle pain','bones are painful','elbow pain',
+  'knee swelling','skin moles','weight gain','leg swelling','heartburn',
+  'muscle pain','recent weight loss','weakness','increased heart rate',
+  'decreased heart rate','ringing in ear','eye redness','itchiness of eye',
+  'feeling cold','decreased appetite','excessive appetite','loss of sensation',
+  'focal weakness','slurring words','disturbance of memory','fever','shoulder pain',
+  'ache all over','upper abdominal pain','stomach bloating','difficulty breathing',
+  'joint pain','muscle stiffness or tightness','chills','fatigue','abdominal distention',
+  'seizures','constipation','allergic reaction','congestion in chest','skin rash',
+  'sleepiness','stiffness all over','nosebleed','sweating','itching of skin',
+  'warts','skin irritation','thirst','sneezing','leg weakness','bedwetting',
+  'jaw pain','muscle weakness','joint swelling','back stiffness or tightness',
+  'low urine output','neck weakness','pallor','side pain','excessive anger',
+]
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Chat primitives
    ═══════════════════════════════════════════════════════════════════════ */
 const AIAvatar = memo(function AIAvatar() {
@@ -78,9 +114,9 @@ const AIAvatar = memo(function AIAvatar() {
 })
 
 const ChatBubble = memo(function ChatBubble({ role, content, animate = true }) {
-  const isUser = role === 'user'
+  const isUser  = role === 'user'
   const Wrapper = animate ? motion.div : 'div'
-  const props = animate ? {
+  const props   = animate ? {
     initial: { opacity: 0, y: 8 },
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.25 },
@@ -113,11 +149,7 @@ const TypingIndicator = memo(function TypingIndicator() {
       <AIAvatar />
       <div
         className="rounded-2xl px-4 py-3 flex gap-1.5"
-        style={{
-          background: '#F8FBFD',
-          border: '1px solid #E6EEF5',
-          borderTopLeftRadius: 4,
-        }}
+        style={{ background: '#F8FBFD', border: '1px solid #E6EEF5', borderTopLeftRadius: 4 }}
       >
         {[0, 1, 2].map(i => (
           <span
@@ -182,15 +214,12 @@ const SeverityMeter = memo(function SeverityMeter({ urgency }) {
             className="h-2.5 flex-1 rounded-full origin-left"
             style={{
               background: i <= activeIdx ? COLORS[lvl] : '#E6EEF5',
-              opacity: i <= activeIdx ? 1 : 0.6,
+              opacity:    i <= activeIdx ? 1 : 0.6,
             }}
           />
         ))}
       </div>
-      <div
-        className="flex justify-between text-[10px] font-medium"
-        style={{ color: '#94a3b8' }}
-      >
+      <div className="flex justify-between text-[10px] font-medium" style={{ color: '#94a3b8' }}>
         <span>Low</span><span>Moderate</span><span>High</span><span>Emergency</span>
       </div>
     </div>
@@ -198,7 +227,7 @@ const SeverityMeter = memo(function SeverityMeter({ urgency }) {
 })
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Body system badge
+   Body system badge row
    ═══════════════════════════════════════════════════════════════════════ */
 const BodySystemBadges = memo(function BodySystemBadges({ systems }) {
   if (!systems?.length) return null
@@ -222,130 +251,263 @@ const BodySystemBadges = memo(function BodySystemBadges({ systems }) {
 })
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Live analysis sidebar (during chat mode)
+   Symptom List Panel — replaces the old "Live Analysis" sidebar.
+
+   Fetches the 377-feature clinical symptom list from /ml/symptom-list,
+   displays it alphabetically grouped with search, allows click-to-select,
+   and fires the NB prediction when "Run Diagnostics" is pressed.
    ═══════════════════════════════════════════════════════════════════════ */
-function LiveAnalysisSidebar({ symptomText, partialResult }) {
-  const hasContent = symptomText.trim().length > 0
-  const hasPartial = partialResult?.conditions?.length > 0
+function SymptomListPanel({ onAnalyze, isLoading }) {
+  const [allSymptoms, setAllSymptoms] = useState([])
+  const [selected,    setSelected]    = useState([])
+  const [search,      setSearch]      = useState('')
+  const [fetchState,  setFetchState]  = useState('loading') // 'loading' | 'ok'
+
+  // Fetch the canonical symptom list from the backend on mount
+  useEffect(() => {
+    mlAPI.getSymptomList()
+      .then(({ data }) => {
+        setAllSymptoms(data.symptoms || [])
+        setFetchState('ok')
+      })
+      .catch(() => {
+        // Graceful fallback to embedded subset
+        setAllSymptoms(EMBEDDED_SYMPTOMS)
+        setFetchState('ok')
+      })
+  }, [])
+
+  // Filter + group alphabetically (memoised for performance)
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allSymptoms
+    const q = search.toLowerCase()
+    return allSymptoms.filter(s => s.toLowerCase().includes(q))
+  }, [allSymptoms, search])
+
+  const grouped = useMemo(() => {
+    const g = {}
+    for (const s of filtered) {
+      const letter = s[0]?.toUpperCase() || '#'
+      if (!g[letter]) g[letter] = []
+      g[letter].push(s)
+    }
+    return Object.entries(g).sort(([a], [b]) => a.localeCompare(b))
+  }, [filtered])
+
+  const toggle = (s) =>
+    setSelected(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+
+  const handleRun = () => {
+    if (selected.length > 0 && !isLoading) onAnalyze(selected)
+  }
 
   return (
-    <Card className="p-6 sticky top-[100px]">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex items-center gap-1.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ background: '#2ECC71', animation: 'pulse 2s ease-in-out infinite' }}
-          />
-          <Kicker style={{ color: '#0F4C81' }}>Live analysis</Kicker>
+    <div className="lg:sticky lg:top-6" style={{ alignSelf: 'flex-start' }}>
+      <Card
+        className="flex flex-col overflow-hidden"
+        style={{ height: 'calc(100vh - 160px)', maxHeight: 680, minHeight: 400 }}
+      >
+        {/* ── Header + Search ──────────────────────────────────────────── */}
+        <div className="px-4 pt-4 pb-3 flex-shrink-0">
+          {/* Title row */}
+          <div className="flex items-center gap-2 mb-3">
+            <span
+              className="w-2 h-2 rounded-full animate-pulse"
+              style={{ background: '#0F4C81' }}
+            />
+            <Kicker style={{ color: '#0F4C81' }}>Clinical Features</Kicker>
+          </div>
+
+          {/* Search input */}
+          <div className="relative">
+            <FiSearch
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: '#94a3b8' }}
+            />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Locate clinical features…"
+              className="w-full pl-8 pr-3 py-2 text-[12.5px] rounded-xl outline-none transition-colors"
+              style={{ background: '#F8FBFD', border: '1px solid #E6EEF5', color: '#0B1320' }}
+              onFocus={e => (e.currentTarget.style.borderColor = '#0F4C81')}
+              onBlur={e  => (e.currentTarget.style.borderColor = '#E6EEF5')}
+            />
+          </div>
         </div>
-      </div>
 
-      {!hasContent && (
-        <>
-          <h3 className="font-display text-[18px] font-bold mb-2" style={{ color: '#0B1320' }}>
-            Tell us what's bothering you.
-          </h3>
-          <p className="text-[13px] leading-relaxed mb-5" style={{ color: '#64748b' }}>
-            We'll match your symptoms across <strong>14 body systems</strong> and 37 conditions in real time.
-          </p>
-
-          <Kicker className="block mb-3">What we check</Kicker>
-          <div className="flex flex-wrap gap-2 mb-5">
-            {['Respiratory','Cardiovascular','Neurological','Digestive','Endocrine','Skin'].map(s => (
-              <span
-                key={s}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px]"
-                style={{ background: '#F8FBFD', border: '1px solid #E6EEF5', color: '#475569' }}
+        {/* ── Selected chips section ───────────────────────────────────── */}
+        <AnimatePresence>
+          {selected.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden flex-shrink-0"
+            >
+              <div
+                className="px-4 py-2.5 border-t border-b"
+                style={{ borderColor: '#E6EEF5', background: 'rgba(15,76,129,0.02)' }}
               >
-                <span>{BODY_SYSTEM_ICONS[s]}</span> {s}
-              </span>
-            ))}
-          </div>
-
-          <div
-            className="rounded-xl p-3 flex items-start gap-2.5"
-            style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.20)' }}
-          >
-            <FiShield size={14} style={{ color: '#1f9d55', marginTop: 2 }} className="flex-shrink-0" />
-            <p className="text-[11.5px] leading-relaxed" style={{ color: '#1f9d55' }}>
-              <strong>Private & safe.</strong> Your descriptions are never shared with third parties.
-            </p>
-          </div>
-        </>
-      )}
-
-      {hasContent && !hasPartial && (
-        <>
-          <h3 className="font-display text-[18px] font-bold mb-2" style={{ color: '#0B1320' }}>
-            Listening for clues…
-          </h3>
-          <p className="text-[13px] leading-relaxed mb-4" style={{ color: '#64748b' }}>
-            Keep going — the more detail you share (when it started, how it feels,
-            what makes it better or worse), the more accurate our match.
-          </p>
-
-          <div className="space-y-2">
-            {['Onset & duration', 'Intensity & quality', 'Associated symptoms', 'Triggers & relief'].map((tip, i) => (
-              <div key={tip} className="flex items-center gap-2.5">
-                <span
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                  style={{ background: 'rgba(15,76,129,0.10)', color: '#0F4C81' }}
-                >
-                  {i + 1}
-                </span>
-                <span className="text-[12.5px]" style={{ color: '#475569' }}>{tip}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {hasPartial && (
-        <>
-          <h3 className="font-display text-[17px] font-bold leading-snug mb-4" style={{ color: '#0B1320' }}>
-            Based on what you've shared so far, these conditions look most consistent.
-          </h3>
-          <div className="space-y-3">
-            {partialResult.conditions.slice(0, 3).map((c, i) => {
-              const pct = Math.round((c.score || 0) * 100)
-              const color = i === 0 ? '#0F4C81' : i === 1 ? '#00C2FF' : '#94a3b8'
-              return (
-                <div
-                  key={c.label}
-                  className="p-3 rounded-xl"
-                  style={{
-                    background: i === 0 ? '#ffffff' : 'transparent',
-                    border: '1px solid #E6EEF5',
-                  }}
-                >
-                  <div className="flex items-baseline justify-between mb-1.5">
-                    <div className="text-[13px] font-semibold truncate" style={{ color: '#0B1320' }}>
-                      {c.label}
-                    </div>
-                    <div
-                      className="font-display tabular text-[18px] font-bold leading-none ml-2"
-                      style={{ color }}
-                    >
-                      {pct}
-                      <span className="text-[10px] ml-0.5" style={{ color: '#94a3b8' }}>%</span>
-                    </div>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#F1F5F9' }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.6 }}
-                      className="h-full rounded-full"
-                      style={{ background: color }}
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-2">
+                  <Kicker>Selected ({selected.length})</Kicker>
+                  <button
+                    onClick={() => setSelected([])}
+                    className="text-[10px] font-semibold transition-colors"
+                    style={{ color: '#ef4444' }}
+                  >
+                    Clear all
+                  </button>
                 </div>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </Card>
+                <div className="flex flex-wrap gap-1.5 max-h-[84px] overflow-y-auto">
+                  <AnimatePresence>
+                    {selected.map(s => (
+                      <motion.button
+                        key={s}
+                        layout
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1,   opacity: 1 }}
+                        exit={{    scale: 0.8, opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={() => toggle(s)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                        style={{
+                          background: 'rgba(15,76,129,0.12)',
+                          color: '#0F4C81',
+                          border: '1px solid rgba(15,76,129,0.22)',
+                        }}
+                      >
+                        {s} <FiX size={9} />
+                      </motion.button>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Scrollable symptom list ──────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Loading spinner */}
+          {fetchState === 'loading' && (
+            <div className="flex items-center justify-center h-32">
+              <div
+                className="w-5 h-5 rounded-full border-2 animate-spin"
+                style={{ borderColor: '#E6EEF5', borderTopColor: '#0F4C81' }}
+              />
+            </div>
+          )}
+
+          {/* Empty state */}
+          {fetchState === 'ok' && grouped.length === 0 && (
+            <div className="p-8 text-center">
+              <p className="text-[12px]" style={{ color: '#94a3b8' }}>
+                No matching symptoms found
+              </p>
+            </div>
+          )}
+
+          {/* Alphabetically grouped list */}
+          {fetchState === 'ok' && grouped.map(([letter, syms]) => (
+            <div key={letter}>
+              {/* Sticky letter header */}
+              <div
+                className="px-4 py-[5px] sticky top-0 z-10"
+                style={{
+                  background: '#fff',
+                  borderBottom: '1px solid #F1F5F9',
+                  borderTop: '1px solid #F8FBFD',
+                }}
+              >
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: '#0F4C81' }}
+                >
+                  {letter}
+                </span>
+              </div>
+
+              {/* Symptom rows */}
+              {syms.map(s => {
+                const active = selected.includes(s)
+                return (
+                  <button
+                    key={s}
+                    onClick={() => toggle(s)}
+                    className="w-full text-left px-4 py-[7px] text-[12.5px] leading-snug flex items-center gap-2.5 transition-colors"
+                    style={{
+                      color:      active ? '#0F4C81'                    : '#475569',
+                      background: active ? 'rgba(15,76,129,0.06)'       : 'transparent',
+                      fontWeight: active ? 600                           : 400,
+                    }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F8FBFD' }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+                  >
+                    {/* Checkbox indicator */}
+                    {active ? (
+                      <span
+                        className="w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 text-white"
+                        style={{ background: '#0F4C81', fontSize: 8 }}
+                      >
+                        ✓
+                      </span>
+                    ) : (
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border flex-shrink-0"
+                        style={{ borderColor: '#D1D9E0' }}
+                      />
+                    )}
+                    {s}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* ── Footer CTA ──────────────────────────────────────────────── */}
+        <div
+          className="px-4 py-3 flex-shrink-0 border-t"
+          style={{ borderColor: '#E6EEF5' }}
+        >
+          <AnimatePresence mode="wait">
+            {selected.length > 0 ? (
+              <motion.button
+                key="run-btn"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleRun}
+                disabled={isLoading}
+                className="w-full py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                style={{ background: 'linear-gradient(135deg,#0F4C81,#1a6db5)' }}
+              >
+                {isLoading
+                  ? <><FiRefreshCw size={13} className="animate-spin" /> Analyzing…</>
+                  : <><FiZap size={13} /> Run Diagnostics →</>
+                }
+              </motion.button>
+            ) : (
+              <motion.p
+                key="footer-label"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-[10.5px] text-center"
+                style={{ color: '#94a3b8' }}
+              >
+                Clinical Database v2.4 • {allSymptoms.length || 377} Features
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+      </Card>
+    </div>
   )
 }
 
@@ -391,14 +553,11 @@ function AnalyzingAnimation() {
       </div>
 
       <Kicker className="mb-2">AI Diagnostic Engine</Kicker>
-      <h3
-        className="font-display text-[26px] font-bold text-center mb-2"
-        style={{ color: '#0B1320' }}
-      >
+      <h3 className="font-display text-[26px] font-bold text-center mb-2" style={{ color: '#0B1320' }}>
         Analyzing your symptoms…
       </h3>
       <p className="text-sm mb-7 text-center max-w-md" style={{ color: '#64748b' }}>
-        Cross-referencing across body systems and 37 conditions.
+        Cross-referencing across body systems and clinical conditions.
       </p>
 
       <div className="flex flex-wrap gap-2 justify-center max-w-md">
@@ -406,10 +565,10 @@ function AnalyzingAnimation() {
           <motion.span
             key={sys}
             animate={{
-              background: i === idx ? '#0F4C81' : '#F8FBFD',
-              color:      i === idx ? '#ffffff' : '#64748b',
+              background:  i === idx ? '#0F4C81' : '#F8FBFD',
+              color:       i === idx ? '#ffffff' : '#64748b',
               borderColor: i === idx ? '#0F4C81' : '#E6EEF5',
-              scale:      i === idx ? 1.05 : 1,
+              scale:       i === idx ? 1.05 : 1,
             }}
             transition={{ duration: 0.3 }}
             className="px-3 py-1.5 rounded-full text-[12px] font-semibold border"
@@ -457,10 +616,7 @@ function SeverityTab({ result, urgencyCfg, allSymptomText }) {
         />
         <div className="pl-3">
           <Kicker>Your symptoms</Kicker>
-          <p
-            className="text-[14px] leading-relaxed italic mt-2"
-            style={{ color: '#475569' }}
-          >
+          <p className="text-[14px] leading-relaxed italic mt-2" style={{ color: '#475569' }}>
             "{allSymptomText.trim()}"
           </p>
         </div>
@@ -472,13 +628,10 @@ function SeverityTab({ result, urgencyCfg, allSymptomText }) {
 function ConditionsTab({ result }) {
   return (
     <Card className="p-6">
-      <CardHeading
-        kicker="Ranked by AI confidence"
-        title="Possible conditions"
-      />
+      <CardHeading kicker="Ranked by AI confidence" title="Possible conditions" />
       <div className="space-y-4">
         {result.conditions.map((c, i) => {
-          const pct = Math.round(c.score * 100)
+          const pct   = Math.round(c.score * 100)
           const color = pct > 70 ? '#0F4C81' : pct > 45 ? '#00C2FF' : '#94a3b8'
           return (
             <motion.div
@@ -505,10 +658,7 @@ function ConditionsTab({ result }) {
                   <span className="text-[11px] flex items-center gap-1" style={{ color: '#94a3b8' }}>
                     {BODY_SYSTEM_ICONS[c.body_system] || '🩺'} {c.body_system}
                   </span>
-                  <span
-                    className="font-display tabular text-[16px] font-bold"
-                    style={{ color }}
-                  >
+                  <span className="font-display tabular text-[16px] font-bold" style={{ color }}>
                     {pct}%
                   </span>
                 </div>
@@ -531,9 +681,8 @@ function ConditionsTab({ result }) {
 }
 
 function SelfCareTab({ selfCare }) {
-  if (!selfCare || Object.keys(selfCare).length === 0) {
+  if (!selfCare || Object.keys(selfCare).length === 0)
     return <EmptyTab message="Self-care guidance not available for this analysis." />
-  }
   return (
     <div className="space-y-4">
       {selfCare.immediate?.length > 0 && (
@@ -589,9 +738,8 @@ function SelfCareTab({ selfCare }) {
 }
 
 function FoodTab({ foodGuidance }) {
-  if (!foodGuidance || Object.keys(foodGuidance).length === 0) {
+  if (!foodGuidance || Object.keys(foodGuidance).length === 0)
     return <EmptyTab message="Food guidance not available." />
-  }
   return (
     <div className="space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
@@ -641,9 +789,8 @@ function FoodTab({ foodGuidance }) {
 }
 
 function RecoveryTab({ recoveryPlan }) {
-  if (!recoveryPlan || Object.keys(recoveryPlan).length === 0) {
+  if (!recoveryPlan || Object.keys(recoveryPlan).length === 0)
     return <EmptyTab message="Recovery plan not available." />
-  }
   const phases = [
     { key: 'week_1',  label: '7-Day plan',   color: '#0F4C81' },
     { key: 'month_1', label: '30-Day plan',  color: '#00C2FF' },
@@ -678,9 +825,7 @@ function RecoveryTab({ recoveryPlan }) {
                     <Kicker>Goals</Kicker>
                     <ul className="space-y-1 mt-1.5">
                       {data.goals.map((g, i) => (
-                        <li key={i} className="text-[12.5px] flex items-start gap-2" style={{ color: '#475569' }}>
-                          ○ {g}
-                        </li>
+                        <li key={i} className="text-[12.5px] flex items-start gap-2" style={{ color: '#475569' }}>○ {g}</li>
                       ))}
                     </ul>
                   </div>
@@ -707,9 +852,9 @@ function RecoveryTab({ recoveryPlan }) {
 }
 
 function DoctorsTab({ specialists, urgency }) {
-  const navigate = useNavigate()
+  const navigate    = useNavigate()
   if (!specialists?.length) return <EmptyTab message="No specialist recommendations available." />
-  const urgencyCfg = URGENCY_CONFIG[urgency] || URGENCY_CONFIG.low
+  const urgencyCfg  = URGENCY_CONFIG[urgency] || URGENCY_CONFIG.low
   const timing =
     urgency === 'emergency' ? 'Immediately — visit the ER now'
     : urgency === 'high'    ? 'Within 24 hours'
@@ -718,14 +863,9 @@ function DoctorsTab({ specialists, urgency }) {
 
   return (
     <div className="space-y-4">
-      <Card
-        className="p-5"
-        style={{ background: urgencyCfg.bg, borderColor: urgencyCfg.border }}
-      >
+      <Card className="p-5" style={{ background: urgencyCfg.bg, borderColor: urgencyCfg.border }}>
         <Kicker style={{ color: urgencyCfg.color }}>When to see a doctor</Kicker>
-        <p className="text-[15px] font-semibold mt-1.5" style={{ color: urgencyCfg.color }}>
-          {timing}
-        </p>
+        <p className="text-[15px] font-semibold mt-1.5" style={{ color: urgencyCfg.color }}>{timing}</p>
       </Card>
       <div className="grid md:grid-cols-2 gap-3">
         {specialists.map((spec, i) => (
@@ -773,25 +913,27 @@ function EmptyTab({ message }) {
    ═══════════════════════════════════════════════════════════════════════ */
 const INITIAL_MESSAGE = {
   role: 'assistant',
-  content: "Hi! I'm your AI health assistant. What symptoms are you experiencing? Describe them in your own words — I'll match them across body systems and help you understand what's going on.",
+  content: "Hi! I'm your AI health assistant. What symptoms are you experiencing? Describe them in your own words — or select them from the clinical panel on the right.",
 }
 
 export default function SymptomCheckerPage() {
-  const navigate = useNavigate()
-  const toast    = useToast()
+  const navigate   = useNavigate()
+  const toast      = useToast()
   const chatEndRef = useRef(null)
 
-  const [step,         setStep]         = useState('chat')        // 'chat' | 'analyzing' | 'result'
-  const [messages,     setMessages]     = useState([INITIAL_MESSAGE])
-  const [inputText,    setInputText]    = useState('')
-  const [loading,      setLoading]      = useState(false)
-  const [result,       setResult]       = useState(null)
+  const [step,          setStep]          = useState('chat')
+  const [messages,      setMessages]      = useState([INITIAL_MESSAGE])
+  const [inputText,     setInputText]     = useState('')
+  const [loading,       setLoading]       = useState(false)
+  const [result,        setResult]        = useState(null)
   const [partialResult, setPartialResult] = useState(null)
-  const [activeTab,    setActiveTab]    = useState('severity')
-  const [allSymptomText, setAllSymptomText] = useState('')
-  const [followUpQ,    setFollowUpQ]    = useState(null)
-  const [followUpStep, setFollowUpStep] = useState(0)
-  const [isTyping,     setIsTyping]     = useState(false)
+  const [activeTab,     setActiveTab]     = useState('severity')
+  const [allSymptomText,setAllSymptomText]= useState('')
+  const [followUpQ,     setFollowUpQ]     = useState(null)
+  const [followUpStep,  setFollowUpStep]  = useState(0)
+  const [isTyping,      setIsTyping]      = useState(false)
+  // panelKey: incrementing this remounts SymptomListPanel (clears selection on reset)
+  const [panelKey,      setPanelKey]      = useState(0)
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -799,6 +941,7 @@ export default function SymptomCheckerPage() {
 
   const addMessage = (role, content) => setMessages(prev => [...prev, { role, content }])
 
+  // ── Chat-based analysis (text → BART/rule-based) ──────────────────────────
   const handleSend = async (text = inputText) => {
     const msg = text.trim()
     if (!msg) return
@@ -821,20 +964,18 @@ export default function SymptomCheckerPage() {
     }
 
     if (followUpStep >= 2 || combined.length > 60) {
-      await runAnalysis(combined)
+      await runChatAnalysis(combined)
       return
     }
 
     if (msg.length >= 10) {
       setLoading(true)
       setIsTyping(true)
-
       setTimeout(async () => {
         try {
           const { data } = await mlAPI.analyzeSymptoms(msg)
           setIsTyping(false)
           setPartialResult(data)
-
           if (data.follow_up_questions?.length > 0) {
             setFollowUpQ(data.follow_up_questions)
             addMessage('assistant', data.follow_up_questions[0].question)
@@ -861,16 +1002,13 @@ export default function SymptomCheckerPage() {
     }, 600)
   }
 
-  const runAnalysis = async (symptomText) => {
+  const runChatAnalysis = async (symptomText) => {
     setStep('analyzing')
     setLoading(true)
     try {
       const { data } = await mlAPI.analyzeSymptoms(symptomText)
       setResult(data)
-      setTimeout(() => {
-        setStep('result')
-        setActiveTab('severity')
-      }, 2600)
+      setTimeout(() => { setStep('result'); setActiveTab('severity') }, 2600)
     } catch (err) {
       toast.error(err.message || 'Analysis failed. Please try again.')
       setStep('chat')
@@ -879,12 +1017,32 @@ export default function SymptomCheckerPage() {
     }
   }
 
-  const handleQuickReply = (reply) => handleSend(reply)
+  // ── Panel-based analysis (selected array → Naive Bayes) ───────────────────
+  const handlePanelAnalyze = async (symptoms) => {
+    if (!symptoms.length) return
+    const text = symptoms.join(', ')
+    setAllSymptomText(text)
+    // Echo selected symptoms in chat as a user turn
+    addMessage('user', `Selected: ${symptoms.slice(0, 5).join(', ')}${symptoms.length > 5 ? ` + ${symptoms.length - 5} more` : ''}`)
+    setStep('analyzing')
+    setLoading(true)
+    try {
+      const { data } = await mlAPI.analyzeSymptomsList(symptoms)
+      setResult(data)
+      setTimeout(() => { setStep('result'); setActiveTab('severity') }, 2600)
+    } catch (err) {
+      toast.error(err.message || 'Analysis failed. Please try again.')
+      setStep('chat')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const handleAnalyzeNow = () => {
+  const handleQuickReply    = (reply) => handleSend(reply)
+  const handleAnalyzeNow    = () => {
     if (allSymptomText.trim().length >= 10) {
       addMessage('user', '(Analyze my symptoms now)')
-      runAnalysis(allSymptomText)
+      runChatAnalysis(allSymptomText)
     }
   }
 
@@ -898,6 +1056,7 @@ export default function SymptomCheckerPage() {
     setFollowUpQ(null)
     setFollowUpStep(0)
     setActiveTab('severity')
+    setPanelKey(k => k + 1)   // remount SymptomListPanel → clears selection
   }
 
   const urgencyCfg = result ? (URGENCY_CONFIG[result.urgency] || URGENCY_CONFIG.low) : null
@@ -940,14 +1099,15 @@ export default function SymptomCheckerPage() {
 
         <div className="flex-1 p-6 lg:p-8 max-w-[1280px] w-full mx-auto">
           <AnimatePresence mode="wait">
+
             {/* ─── CHAT MODE ─── */}
             {step === 'chat' && (
               <motion.div
                 key="chat"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4"
+                className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 items-start"
               >
-                {/* LEFT — chat conversation */}
+                {/* LEFT — chat conversation + input bar */}
                 <div className="flex flex-col gap-4">
                   <Card className="p-6 flex-1 flex flex-col" style={{ minHeight: 480 }}>
                     <div className="flex-1 overflow-y-auto pr-1" style={{ maxHeight: 520 }}>
@@ -1020,8 +1180,8 @@ export default function SymptomCheckerPage() {
                         border: '1px solid #E6EEF5',
                         color: '#0B1320',
                       }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#0F4C81'}
-                      onBlur={e => e.currentTarget.style.borderColor = '#E6EEF5'}
+                      onFocus={e => (e.currentTarget.style.borderColor = '#0F4C81')}
+                      onBlur={e  => (e.currentTarget.style.borderColor = '#E6EEF5')}
                     />
                     <button
                       aria-label="Voice input"
@@ -1046,10 +1206,12 @@ export default function SymptomCheckerPage() {
                   </p>
                 </div>
 
-                {/* RIGHT — sticky live analysis */}
-                <div className="lg:block">
-                  <LiveAnalysisSidebar symptomText={allSymptomText} partialResult={partialResult} />
-                </div>
+                {/* RIGHT — interactive symptom selection panel */}
+                <SymptomListPanel
+                  key={panelKey}
+                  onAnalyze={handlePanelAnalyze}
+                  isLoading={loading}
+                />
               </motion.div>
             )}
 
@@ -1105,7 +1267,7 @@ export default function SymptomCheckerPage() {
                 {/* Tab nav */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                   {RESULT_TABS.map(t => {
-                    const Icon = t.icon
+                    const Icon     = t.icon
                     const isActive = activeTab === t.id
                     return (
                       <button
@@ -1136,21 +1298,21 @@ export default function SymptomCheckerPage() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {activeTab === 'severity'   && <SeverityTab result={result} urgencyCfg={urgencyCfg} allSymptomText={allSymptomText} />}
+                    {activeTab === 'severity'   && <SeverityTab   result={result} urgencyCfg={urgencyCfg} allSymptomText={allSymptomText} />}
                     {activeTab === 'conditions' && <ConditionsTab result={result} />}
-                    {activeTab === 'selfcare'   && <SelfCareTab selfCare={result.self_care} />}
-                    {activeTab === 'food'       && <FoodTab foodGuidance={result.food_guidance} />}
-                    {activeTab === 'recovery'   && <RecoveryTab recoveryPlan={result.recovery_plan} />}
-                    {activeTab === 'doctors'    && <DoctorsTab specialists={result.specialists} urgency={result.urgency} />}
+                    {activeTab === 'selfcare'   && <SelfCareTab   selfCare={result.self_care} />}
+                    {activeTab === 'food'       && <FoodTab       foodGuidance={result.food_guidance} />}
+                    {activeTab === 'recovery'   && <RecoveryTab   recoveryPlan={result.recovery_plan} />}
+                    {activeTab === 'doctors'    && <DoctorsTab    specialists={result.specialists} urgency={result.urgency} />}
                   </motion.div>
                 </AnimatePresence>
 
                 {/* Bottom action row */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
-                    { label: 'Ask AI',         icon: '💬', onClick: () => navigate('/chat')             },
-                    { label: 'Upload report',  icon: '📋', onClick: () => navigate('/report-analyzer')  },
-                    { label: 'New check',      icon: '🔁', onClick: reset                                 },
+                    { label: 'Ask AI',        icon: '💬', onClick: () => navigate('/chat')            },
+                    { label: 'Upload report', icon: '📋', onClick: () => navigate('/report-analyzer') },
+                    { label: 'New check',     icon: '🔁', onClick: reset                               },
                   ].map(a => (
                     <button
                       key={a.label}
@@ -1167,11 +1329,12 @@ export default function SymptomCheckerPage() {
 
                 <Card className="p-4" style={{ background: '#F8FBFD' }}>
                   <p className="text-[11.5px] leading-relaxed" style={{ color: '#64748b' }}>
-                    {result.disclaimer || 'This AI analysis is for informational purposes only and does not replace consultation with a qualified medical professional. Always seek medical advice for serious or persistent symptoms.'}
+                    {result.disclaimer || 'This AI analysis is for informational purposes only and does not replace consultation with a qualified medical professional.'}
                   </p>
                 </Card>
               </motion.div>
             )}
+
           </AnimatePresence>
         </div>
       </main>

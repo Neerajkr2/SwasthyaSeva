@@ -37,10 +37,19 @@ async def lifespan(app: FastAPI):
     from ml.disease_predictor import DiseasePredictor
     from ml.symptom_analyzer  import SymptomAnalyzer
     from ml.drug_interaction  import DrugInteractionChecker
+    from ml.nb_predictor      import NBPredictor
 
     app.state.disease_predictor = DiseasePredictor()
     app.state.symptom_analyzer  = SymptomAnalyzer()
     app.state.drug_checker      = DrugInteractionChecker()
+
+    # Naive Bayes predictor — integrated from Medical_project-main
+    try:
+        app.state.nb_predictor = NBPredictor()
+        logger.info("✅ NBPredictor loaded")
+    except FileNotFoundError as exc:
+        logger.warning("⚠️  NBPredictor unavailable (%s) — /ml/symptoms/select will return 503", exc)
+        app.state.nb_predictor = None
 
     logger.info("✅ ML models loaded")
 

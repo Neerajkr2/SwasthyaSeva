@@ -115,6 +115,11 @@ class DashboardStats(BaseModel):
 class SymptomRequest(BaseModel):
     symptoms: str = Field(..., min_length=3, max_length=2000)
 
+class SymptomSelectRequest(BaseModel):
+    """Selection-based symptom analysis — array of symptom strings from the
+    canonical 377-feature clinical list (powered by the NB classifier)."""
+    symptoms: List[str] = Field(..., min_length=1, max_length=50)
+
 class SymptomResult(BaseModel):
     conditions: List[Dict[str, Any]]
     urgency: str
