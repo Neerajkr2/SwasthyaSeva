@@ -25,13 +25,19 @@ build/
 backend/firebase-credentials.json
 *firebase*.json
 
-# ── ML saved models (large binary files — use DVC or artifact store) ──────────
-backend/ml/saved_models/*.joblib
-backend/ml/saved_models/*.pkl
+# # ── ML saved models (large binary files — use DVC or artifact store) ──────────
+# backend/ml/saved_models/*.joblib
+# backend/ml/saved_models/*.pkl
+# backend/ml/saved_models/*.pt
+# backend/ml/saved_models/*.h5
+# # Keep the directory itself
+# !backend/ml/saved_models/.gitkeep
+
+# ── ML saved models ───────────────────────────────────────────────────────────
+# Trained models are small (~2 MB total) and are committed so the deployment
+# server has them at build time. Only large deep-learning weights are ignored.
 backend/ml/saved_models/*.pt
 backend/ml/saved_models/*.h5
-# Keep the directory itself
-!backend/ml/saved_models/.gitkeep
 
 # ── Uploads / temp ────────────────────────────────────────────────────────────
 uploads/
