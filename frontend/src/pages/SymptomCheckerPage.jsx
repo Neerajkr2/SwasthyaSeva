@@ -22,13 +22,11 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FiAlertTriangle, FiZap, FiSend, FiHeart, FiActivity, FiShield,
-  FiClock, FiUser, FiChevronRight, FiRefreshCw, FiMic, FiSearch, FiX,
+  FiClock, FiUser, FiChevronRight, FiRefreshCw, FiMic, FiSearch, FiX, FiPlus,
 } from 'react-icons/fi'
 import { mlAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 
-import DashboardSidebar from '../components/dashboard/DashboardSidebar'
-import MobileBottomNav  from '../components/common/MobileBottomNav'
 import AppTopBar        from '../components/dashboard/AppTopBar'
 import { Card, CardHeading, Kicker } from '../components/dashboard/_primitives'
 
@@ -626,11 +624,20 @@ function SeverityTab({ result, urgencyCfg, allSymptomText }) {
 }
 
 function ConditionsTab({ result }) {
+  const [expanded, setExpanded] = useState(false)
+  const all     = result.conditions || []
+  const visible = expanded ? all : all.slice(0, 3)
+  const hidden  = all.length - visible.length
   return (
     <Card className="p-6">
       <CardHeading kicker="Ranked by AI confidence" title="Possible conditions" />
+      {all.length === 0 && (
+        <p className="text-[13px]" style={{ color: '#94a3b8' }}>
+          Not enough detail yet — add more symptoms to generate possible conditions.
+        </p>
+      )}
       <div className="space-y-4">
-        {result.conditions.map((c, i) => {
+        {visible.map((c, i) => {
           const pct   = Math.round(c.score * 100)
           const color = pct > 70 ? '#0F4C81' : pct > 45 ? '#00C2FF' : '#94a3b8'
           return (
@@ -675,6 +682,94 @@ function ConditionsTab({ result }) {
             </motion.div>
           )
         })}
+      </div>
+
+      {all.length > 3 && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="mt-5 w-full py-2 rounded-xl text-[12.5px] font-semibold transition-colors hover:bg-slate-50"
+          style={{ border: '1px solid #E6EEF5', color: '#0F4C81' }}
+        >
+          {expanded ? 'Show fewer conditions' : `Show all ${all.length} conditions (+${hidden})`}
+        </button>
+      )}
+    </Card>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Confidence indicator — surfaces analysis_confidence from the engine
+   ═══════════════════════════════════════════════════════════════════════ */
+const CONFIDENCE_CFG = {
+  high:   { color: '#1f9d55', bg: 'rgba(46,204,113,0.08)',  border: 'rgba(46,204,113,0.25)', label: 'High confidence' },
+  medium: { color: '#b86b14', bg: 'rgba(255,159,67,0.08)',  border: 'rgba(255,159,67,0.28)', label: 'Moderate confidence' },
+  low:    { color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.22)', label: 'Low confidence' },
+}
+
+function ConfidenceBar({ confidence, round }) {
+  if (!confidence?.level) return null
+  const cfg = CONFIDENCE_CFG[confidence.level] || CONFIDENCE_CFG.low
+  const pct = Math.round((confidence.score || 0) * 100)
+  return (
+    <Card className="p-4" style={{ background: cfg.bg, borderColor: cfg.border }}>
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: cfg.color }} />
+          <span className="text-[12.5px] font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
+          {round > 1 && (
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(15,76,129,0.10)', color: '#0F4C81' }}
+            >
+              Refined · Round {round}
+            </span>
+          )}
+        </div>
+        <span className="font-display tabular text-[15px] font-bold" style={{ color: cfg.color }}>{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.6)' }}>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.7 }}
+          className="h-full rounded-full"
+          style={{ background: cfg.color }}
+        />
+      </div>
+      <p className="text-[11.5px] leading-relaxed" style={{ color: cfg.color }}>{confidence.message}</p>
+    </Card>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Refinement bar — the multi-step "evolving assistant" loop
+   ═══════════════════════════════════════════════════════════════════════ */
+function RefinementBar({ onAddMore, onRefine }) {
+  return (
+    <Card className="p-5" style={{ background: 'rgba(15,76,129,0.03)', borderColor: 'rgba(15,76,129,0.15)' }}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <Kicker style={{ color: '#0F4C81' }}>Keep refining</Kicker>
+          <p className="text-[13px] mt-1" style={{ color: '#475569' }}>
+            The more you share, the sharper the analysis. Add new symptoms or re-run the engine.
+          </p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <button
+            onClick={onAddMore}
+            className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center gap-2 transition-all hover:-translate-y-0.5"
+            style={{ background: 'linear-gradient(135deg,#0F4C81,#1a6db5)' }}
+          >
+            <FiPlus size={14} /> Add more symptoms
+          </button>
+          <button
+            onClick={onRefine}
+            className="px-4 py-2.5 rounded-xl text-[13px] font-semibold flex items-center gap-2 transition-colors hover:bg-white"
+            style={{ border: '1px solid rgba(15,76,129,0.25)', color: '#0F4C81' }}
+          >
+            <FiRefreshCw size={13} /> Refine analysis
+          </button>
+        </div>
       </div>
     </Card>
   )
@@ -932,6 +1027,7 @@ export default function SymptomCheckerPage() {
   const [followUpQ,     setFollowUpQ]     = useState(null)
   const [followUpStep,  setFollowUpStep]  = useState(0)
   const [isTyping,      setIsTyping]      = useState(false)
+  const [analysisRound, setAnalysisRound] = useState(1)   // increments on each refine
   // panelKey: incrementing this remounts SymptomListPanel (clears selection on reset)
   const [panelKey,      setPanelKey]      = useState(0)
 
@@ -941,7 +1037,9 @@ export default function SymptomCheckerPage() {
 
   const addMessage = (role, content) => setMessages(prev => [...prev, { role, content }])
 
-  // ── Chat-based analysis (text → BART/rule-based) ──────────────────────────
+  // ── Chat-based analysis (text → category reasoning engine) ────────────────
+  // Key fix: question generation always uses the ACCUMULATED text, so the engine
+  // always "sees" the original symptom (e.g. "leg pain") when deciding what to ask.
   const handleSend = async (text = inputText) => {
     const msg = text.trim()
     if (!msg) return
@@ -949,57 +1047,48 @@ export default function SymptomCheckerPage() {
     addMessage('user', msg)
     setInputText('')
 
-    const combined = allSymptomText + ' ' + msg
+    const combined = (allSymptomText ? allSymptomText + '. ' : '') + msg
     setAllSymptomText(combined)
 
-    if (followUpStep > 0 && followUpStep < 3 && followUpQ && followUpStep < followUpQ.length) {
+    // (1) Mid-questionnaire → ask the next pending follow-up question
+    if (followUpQ && followUpStep > 0 && followUpStep < followUpQ.length) {
       setIsTyping(true)
       setTimeout(() => {
         setIsTyping(false)
-        const nextQ = followUpQ[followUpStep]
-        addMessage('assistant', nextQ.question)
+        addMessage('assistant', followUpQ[followUpStep].question)
         setFollowUpStep(prev => prev + 1)
-      }, 700)
+      }, 650)
       return
     }
 
-    if (followUpStep >= 2 || combined.length > 60) {
+    // (2) Finished the questionnaire → run the full analysis
+    if (followUpQ && followUpStep >= followUpQ.length) {
       await runChatAnalysis(combined)
       return
     }
 
-    if (msg.length >= 10) {
-      setLoading(true)
-      setIsTyping(true)
-      setTimeout(async () => {
-        try {
-          const { data } = await mlAPI.analyzeSymptoms(msg)
-          setIsTyping(false)
-          setPartialResult(data)
-          if (data.follow_up_questions?.length > 0) {
-            setFollowUpQ(data.follow_up_questions)
-            addMessage('assistant', data.follow_up_questions[0].question)
-            setFollowUpStep(1)
-            setResult(data)
-          } else {
-            setResult(data)
-            setStep('result')
-          }
-        } catch (err) {
-          setIsTyping(false)
-          toast.error(err.message || 'Analysis failed. Please try again.')
-        } finally {
-          setLoading(false)
-        }
-      }, 500)
-      return
-    }
-
+    // (3) First substantive message → detect categories + fetch dynamic questions
+    setLoading(true)
     setIsTyping(true)
-    setTimeout(() => {
+    try {
+      const { data } = await mlAPI.analyzeSymptoms(combined)
       setIsTyping(false)
-      addMessage('assistant', "Could you describe your symptoms in more detail? Include how long you've had them, severity, and any other symptoms.")
-    }, 600)
+      setPartialResult(data)
+      setResult(data)
+      const qs = data.follow_up_questions || []
+      if (qs.length > 0) {
+        setFollowUpQ(qs)
+        addMessage('assistant', qs[0].question)
+        setFollowUpStep(1)
+      } else {
+        await runChatAnalysis(combined)
+      }
+    } catch (err) {
+      setIsTyping(false)
+      toast.error(err.message || 'Analysis failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const runChatAnalysis = async (symptomText) => {
@@ -1008,7 +1097,7 @@ export default function SymptomCheckerPage() {
     try {
       const { data } = await mlAPI.analyzeSymptoms(symptomText)
       setResult(data)
-      setTimeout(() => { setStep('result'); setActiveTab('severity') }, 2600)
+      setTimeout(() => { setStep('result'); setActiveTab('severity') }, 2400)
     } catch (err) {
       toast.error(err.message || 'Analysis failed. Please try again.')
       setStep('chat')
@@ -1040,10 +1129,30 @@ export default function SymptomCheckerPage() {
 
   const handleQuickReply    = (reply) => handleSend(reply)
   const handleAnalyzeNow    = () => {
-    if (allSymptomText.trim().length >= 10) {
+    if (allSymptomText.trim().length >= 4) {
       addMessage('user', '(Analyze my symptoms now)')
       runChatAnalysis(allSymptomText)
     }
+  }
+
+  // ── Multi-step refinement ─────────────────────────────────────────────────
+  // "Add more symptoms" returns to the conversation, KEEPING the accumulated
+  // context, and re-opens questioning so the next round produces a sharper result.
+  const handleAddMoreSymptoms = () => {
+    setStep('chat')
+    setFollowUpQ(null)
+    setFollowUpStep(0)
+    setIsTyping(false)
+    setAnalysisRound(r => r + 1)
+    addMessage(
+      'assistant',
+      "Good — let's refine this. What other symptoms are you noticing? Tell me anything new (when it started, how it feels), and I'll sharpen the analysis.",
+    )
+  }
+
+  // "Refine analysis" re-runs the engine on everything gathered so far.
+  const handleRefine = () => {
+    if (allSymptomText.trim().length >= 4) runChatAnalysis(allSymptomText)
   }
 
   const reset = () => {
@@ -1056,21 +1165,20 @@ export default function SymptomCheckerPage() {
     setFollowUpQ(null)
     setFollowUpStep(0)
     setActiveTab('severity')
+    setAnalysisRound(1)
     setPanelKey(k => k + 1)   // remount SymptomListPanel → clears selection
   }
 
   const urgencyCfg = result ? (URGENCY_CONFIG[result.urgency] || URGENCY_CONFIG.low) : null
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      <DashboardSidebar />
-
-      <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
+    <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <AppTopBar
           kicker="Symptom check"
           title={
             step === 'chat'      ? "Tell us what's bothering you"
             : step === 'analyzing' ? 'Analyzing your symptoms…'
+            : analysisRound > 1     ? `Your symptom analysis · Round ${analysisRound}`
             :                         'Your symptom analysis'
           }
           action={
@@ -1235,6 +1343,9 @@ export default function SymptomCheckerPage() {
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 className="space-y-4"
               >
+                {/* Confidence indicator */}
+                <ConfidenceBar confidence={result.analysis_confidence} round={analysisRound} />
+
                 {/* Emergency banner */}
                 {(result.urgency === 'emergency' || result.urgency === 'high') && (
                   <Card
@@ -1307,6 +1418,9 @@ export default function SymptomCheckerPage() {
                   </motion.div>
                 </AnimatePresence>
 
+                {/* Multi-step refinement loop */}
+                <RefinementBar onAddMore={handleAddMoreSymptoms} onRefine={handleRefine} />
+
                 {/* Bottom action row */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
@@ -1338,8 +1452,5 @@ export default function SymptomCheckerPage() {
           </AnimatePresence>
         </div>
       </main>
-
-      <MobileBottomNav />
-    </div>
   )
 }

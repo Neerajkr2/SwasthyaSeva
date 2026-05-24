@@ -16,8 +16,6 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../hooks/useAuth'
 import { timeAgo } from '../utils/helpers'
 import LoadingSpinner from '../components/common/LoadingSpinner'
-import DashboardSidebar from '../components/dashboard/DashboardSidebar'
-import MobileBottomNav  from '../components/common/MobileBottomNav'
 import AppTopBar        from '../components/dashboard/AppTopBar'
 
 // ── Tab config ──────────────────────────────────────────────────────────────
@@ -590,9 +588,7 @@ export default function AdminPage() {
   const confirmDelete = (id, name) => setDeleteTarget({ id, name })
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      <DashboardSidebar />
-
+    <>
       <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <AppTopBar
           kicker="Admin · Platform management"
@@ -667,7 +663,6 @@ export default function AdminPage() {
         )}
       </AnimatePresence>
 
-      <MobileBottomNav />
-    </div>
+    </>
   )
 }

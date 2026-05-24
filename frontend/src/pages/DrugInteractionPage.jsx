@@ -33,8 +33,6 @@ import {
 import { mlAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 
-import DashboardSidebar from '../components/dashboard/DashboardSidebar'
-import MobileBottomNav  from '../components/common/MobileBottomNav'
 import AppTopBar        from '../components/dashboard/AppTopBar'
 import { Card, Kicker } from '../components/dashboard/_primitives'
 
@@ -894,10 +892,7 @@ export default function DrugInteractionPage() {
     : 'input'
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      <DashboardSidebar />
-
-      <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
+    <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <AppTopBar
           kicker="Drug safety"
           title={
@@ -1092,8 +1087,5 @@ export default function DrugInteractionPage() {
           </AnimatePresence>
         </div>
       </main>
-
-      <MobileBottomNav />
-    </div>
   )
 }

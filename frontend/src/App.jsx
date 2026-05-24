@@ -8,6 +8,10 @@ import LoadingSpinner from './components/common/LoadingSpinner'
 // LandingPage is the most-hit route — keep it eager to avoid first-paint flash.
 import LandingPage from './pages/LandingPage'
 
+// DashboardLayout is the persistent app shell (sidebar + bottom nav). It must
+// be eager so the shell paints instantly and stays mounted across navigation.
+import DashboardLayout from './components/dashboard/DashboardLayout'
+
 // ── Lazy-loaded (code-split per route) ─────────────────────────────────────
 // Reduces initial JS bundle by deferring app-only pages until navigation.
 const DashboardPage       = lazy(() => import('./pages/DashboardPage'))
@@ -46,17 +50,27 @@ export default function App() {
     <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner fullScreen />}>
         <Routes>
-          <Route path="/"                element={<LandingPage />} />
-          <Route path="/dashboard"       element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-          <Route path="/chat"            element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-          <Route path="/symptoms"        element={<ProtectedRoute><SymptomCheckerPage /></ProtectedRoute>} />
-          <Route path="/drugs"           element={<ProtectedRoute><DrugInteractionPage /></ProtectedRoute>} />
-          <Route path="/report-analyzer" element={<ProtectedRoute><ReportAnalyzerPage /></ProtectedRoute>} />
-          <Route path="/profile"         element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/insights"        element={<ProtectedRoute><HealthInsightsPage /></ProtectedRoute>} />
-          <Route path="/doctors"         element={<ProtectedRoute><DoctorPortalPage /></ProtectedRoute>} />
-          <Route path="/admin"           element={<AdminRoute><AdminPage /></AdminRoute>} />
-          <Route path="*"                element={<NotFoundPage />} />
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Persistent dashboard shell — the sidebar/bottom-nav stay mounted
+              while only the page content swaps inside the layout's Outlet. */}
+          <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+            <Route path="/dashboard"       element={<DashboardPage />} />
+            <Route path="/chat"            element={<ChatPage />} />
+            <Route path="/symptoms"        element={<SymptomCheckerPage />} />
+            <Route path="/drugs"           element={<DrugInteractionPage />} />
+            <Route path="/report-analyzer" element={<ReportAnalyzerPage />} />
+            <Route path="/profile"         element={<ProfilePage />} />
+            <Route path="/insights"        element={<HealthInsightsPage />} />
+            <Route path="/doctors"         element={<DoctorPortalPage />} />
+          </Route>
+
+          {/* Admin shares the same persistent shell, behind the admin guard. */}
+          <Route element={<AdminRoute><DashboardLayout /></AdminRoute>}>
+            <Route path="/admin"           element={<AdminPage />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>

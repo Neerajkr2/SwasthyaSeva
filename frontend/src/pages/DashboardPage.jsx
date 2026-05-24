@@ -17,9 +17,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../context/ToastContext'
 import { userAPI, mlAPI } from '../services/api'
 import { greeting, formatDate, getInitials } from '../utils/helpers'
-import DashboardSidebar    from '../components/dashboard/DashboardSidebar'
 import DashboardOverview   from '../components/dashboard/DashboardOverview'
-import MobileBottomNav     from '../components/common/MobileBottomNav'
 import {
   VitalsForm, ReportsSection, ChatHistory,
 } from '../components/dashboard/DashboardWidgets'
@@ -397,12 +395,7 @@ export default function DashboardPage() {
   if (loading) return <LoadingSpinner fullScreen />
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      {/* Sidebar */}
-      <DashboardSidebar />
-
-      {/* Main column */}
-      <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
+    <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <TopBar
           displayName={displayName}
           onNewEntry={() => navigate('/symptoms')}
@@ -426,9 +419,5 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
-
-      {/* Mobile bottom nav */}
-      <MobileBottomNav activeTab={activeTab} setActiveTab={changeTab} />
-    </div>
   )
 }

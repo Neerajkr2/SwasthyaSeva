@@ -9,8 +9,6 @@ import {
   FiCheckCircle, FiActivity, FiMessageSquare,
 } from 'react-icons/fi'
 import { doctorAPI } from '../services/api'
-import DashboardSidebar from '../components/dashboard/DashboardSidebar'
-import MobileBottomNav  from '../components/common/MobileBottomNav'
 import AppTopBar        from '../components/dashboard/AppTopBar'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -409,9 +407,7 @@ export default function DoctorPortalPage() {
   const uniqueHospitals = new Set(doctors.map(d => d.hospital)).size
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      <DashboardSidebar />
-
+    <>
       <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <AppTopBar
           kicker="Doctor portal"
@@ -588,7 +584,6 @@ export default function DoctorPortalPage() {
         {selected && <DoctorDetail doctor={selected} onClose={() => setSelected(null)} />}
       </AnimatePresence>
 
-      <MobileBottomNav />
-    </div>
+    </>
   )
 }

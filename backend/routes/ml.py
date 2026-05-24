@@ -78,6 +78,16 @@ def _nb_to_symptom_result(raw: Dict[str, Any], selected: List[str]) -> Dict[str,
     primary_system   = body_systems[0] if body_systems else ""
     food_guidance    = FOOD_GUIDANCE.get(primary_system, DEFAULT_FOOD_GUIDANCE)
 
+    # Confidence signal — based on top score + number of symptoms selected
+    top_score = conditions[0]["score"] if conditions else 0.0
+    sig = top_score * 0.6 + min(len(matched or selected), 6) / 6 * 0.4
+    if sig >= 0.6:
+        conf = {"level": "high",   "score": round(sig, 3), "message": "Strong match from selected symptoms."}
+    elif sig >= 0.38:
+        conf = {"level": "medium", "score": round(sig, 3), "message": "Add a few more symptoms to sharpen the result."}
+    else:
+        conf = {"level": "low",    "score": round(sig, 3), "message": "Limited data. Select more symptoms for reliability."}
+
     return {
         "conditions":          conditions,
         "urgency":             urgency,
@@ -88,6 +98,7 @@ def _nb_to_symptom_result(raw: Dict[str, Any], selected: List[str]) -> Dict[str,
         "specialists":         specialists,
         "recovery_plan":       _generate_recovery_plan(conditions, urgency),
         "follow_up_questions": _get_follow_up_questions(symptom_text),
+        "analysis_confidence": conf,
         "disclaimer": (
             "AI-generated analysis powered by clinical NB classifier. "
             "Does NOT constitute a medical diagnosis. Consult a licensed physician."

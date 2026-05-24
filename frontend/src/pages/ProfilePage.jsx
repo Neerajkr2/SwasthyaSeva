@@ -33,8 +33,6 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../context/ToastContext'
 import { getInitials, timeAgo } from '../utils/helpers'
 
-import DashboardSidebar from '../components/dashboard/DashboardSidebar'
-import MobileBottomNav  from '../components/common/MobileBottomNav'
 import AppTopBar        from '../components/dashboard/AppTopBar'
 import { Card, CardHeading, Kicker } from '../components/dashboard/_primitives'
 
@@ -459,10 +457,7 @@ export default function ProfilePage() {
   }, [vitals, createdAt])
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      <DashboardSidebar />
-
-      <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
+    <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <AppTopBar
           kicker="Account · Health profile"
           title="Your health, at a glance"
@@ -933,8 +928,5 @@ export default function ProfilePage() {
           </p>
         </div>
       </main>
-
-      <MobileBottomNav />
-    </div>
   )
 }

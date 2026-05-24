@@ -130,6 +130,7 @@ class SymptomResult(BaseModel):
     specialists: List[str] = []
     recovery_plan: Dict[str, Any] = {}
     follow_up_questions: List[Dict[str, Any]] = []
+    analysis_confidence: Dict[str, Any] = {}   # {level, score, message} — drives refine UX
     disclaimer: str
 
 class RiskRequest(BaseModel):

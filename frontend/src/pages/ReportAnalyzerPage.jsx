@@ -28,8 +28,6 @@ import { mlAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { formatBytes } from '../utils/helpers'
 
-import DashboardSidebar from '../components/dashboard/DashboardSidebar'
-import MobileBottomNav  from '../components/common/MobileBottomNav'
 import AppTopBar        from '../components/dashboard/AppTopBar'
 import { Card, CardHeading, Kicker, Status, Ring } from '../components/dashboard/_primitives'
 
@@ -1297,10 +1295,7 @@ export default function ReportAnalyzerPage() {
     :                          'Your report, explained.'
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      <DashboardSidebar />
-
-      <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
+    <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <AppTopBar
           kicker={topbarKicker}
           title={topbarTitle}
@@ -1491,8 +1486,5 @@ export default function ReportAnalyzerPage() {
           </AnimatePresence>
         </div>
       </main>
-
-      <MobileBottomNav />
-    </div>
   )
 }

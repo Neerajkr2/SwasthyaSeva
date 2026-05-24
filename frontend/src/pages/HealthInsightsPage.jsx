@@ -20,8 +20,6 @@ import { memo, useState } from 'react'
 import {
   FiCalendar, FiArrowUp, FiArrowDown, FiArrowRight, FiZap,
 } from 'react-icons/fi'
-import DashboardSidebar from '../components/dashboard/DashboardSidebar'
-import MobileBottomNav  from '../components/common/MobileBottomNav'
 import AppTopBar         from '../components/dashboard/AppTopBar'
 import { Card, CardHeading, Kicker, Status, Ring } from '../components/dashboard/_primitives'
 
@@ -450,10 +448,7 @@ export default function HealthInsightsPage() {
   const [period,    setPeriod]    = useState('6 months')
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F8FBFD' }}>
-      <DashboardSidebar />
-
-      <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
+    <main className="flex-1 min-h-screen flex flex-col overflow-x-hidden pb-20 lg:pb-0">
         <AppTopBar
           kicker={`Health insights · last ${period}`}
           title="The shape of you, over time"
@@ -474,8 +469,5 @@ export default function HealthInsightsPage() {
           </div>
         </div>
       </main>
-
-      <MobileBottomNav />
-    </div>
   )
 }
