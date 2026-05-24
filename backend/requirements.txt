@@ -23,10 +23,10 @@ pandas==2.2.2
 joblib==1.4.2
 imbalanced-learn==0.12.3
 
-# ── NLP ────────────────────────────────────────────────────────────────────────
-transformers==4.41.2
-torch==2.3.1          # CPU-only; remove and use torch-cpu for lighter install
-spacy==3.8.14
+# # ── NLP ────────────────────────────────────────────────────────────────────────
+# transformers==4.41.2
+# torch==2.3.1          # CPU-only; remove and use torch-cpu for lighter install
+# spacy==3.8.14
 
 # ── OCR ────────────────────────────────────────────────────────────────────────
 pytesseract==0.3.10
