@@ -8,11 +8,19 @@ from config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# engine = create_async_engine(
+#     settings.database_url,
+#     echo=(settings.environment == "development"),
+#     pool_size=10,
+#     max_overflow=20,
+# )
+
 engine = create_async_engine(
     settings.database_url,
     echo=(settings.environment == "development"),
-    pool_size=10,
-    max_overflow=20,
+    pool_size=3,
+    max_overflow=2,
+    pool_pre_ping=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
