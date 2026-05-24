@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth'
-import { auth, signInWithGoogle, signOutUser } from '../services/firebase'
+import { auth, signInWithGoogle, signInWithGoogleRedirect, getGoogleRedirectResult, signOutUser } from '../services/firebase'
 import { authAPI, storeToken, clearToken, getStoredToken } from '../services/api'
 
 const AuthContext = createContext(null)
@@ -56,6 +56,26 @@ export function AuthProvider({ children }) {
     return data
   }, [])
 
+  // ── Finish Google sign-in when returning from a redirect fallback ─────────
+  // Runs once on mount. If the user was sent to Google via signInWithRedirect
+  // (because the popup was blocked), this completes the login on return.
+  useEffect(() => {
+    getGoogleRedirectResult()
+      .then(async (result) => {
+        if (!result?.user) return
+        const idToken = await result.user.getIdToken()
+        let captchaToken = ''
+        try {
+          captchaToken = sessionStorage.getItem('ss_pending_captcha') || ''
+          sessionStorage.removeItem('ss_pending_captcha')
+        } catch { /* ignore */ }
+        const { data } = await authAPI.loginWithGoogle(idToken, captchaToken)
+        handleAuthResponse(data)
+        if (data?.access_token) window.location.replace('/dashboard')
+      })
+      .catch((e) => console.warn('Google redirect sign-in did not complete:', e?.code || e))
+  }, [handleAuthResponse])
+
   // ── Email/Password Sign-up ────────────────────────────────────────────────
   const registerEmail = useCallback(async ({ name, email, password, captchaToken }) => {
     // 1. Create Firebase user
@@ -87,12 +107,25 @@ export function AuthProvider({ children }) {
 
   // ── Google Sign-in ────────────────────────────────────────────────────────
   const loginGoogle = useCallback(async (captchaToken) => {
-    const result  = await signInWithGoogle()
-    const idToken = await result.user.getIdToken()
-
-    const { data } = await authAPI.loginWithGoogle(idToken, captchaToken)
-    handleAuthResponse(data)
-    return data
+    try {
+      const result  = await signInWithGoogle()
+      const idToken = await result.user.getIdToken()
+      const { data } = await authAPI.loginWithGoogle(idToken, captchaToken)
+      handleAuthResponse(data)
+      return data
+    } catch (err) {
+      // If the browser/extension blocked the popup, fall back to a full-page
+      // redirect (no popup needed). Stash the captcha token so it survives the
+      // round-trip; the redirect-result effect above finishes the login.
+      const code = err?.code || ''
+      if (['auth/popup-blocked', 'auth/cancelled-popup-request',
+           'auth/operation-not-supported-in-this-environment'].includes(code)) {
+        try { sessionStorage.setItem('ss_pending_captcha', captchaToken || '') } catch { /* ignore */ }
+        await signInWithGoogleRedirect()
+        return  // page navigates to Google; result handled on return
+      }
+      throw err
+    }
   }, [handleAuthResponse])
 
   // ── Logout ────────────────────────────────────────────────────────────────

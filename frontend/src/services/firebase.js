@@ -2,7 +2,7 @@
 import { initializeApp }  from 'firebase/app'
 import {
   getAuth, GoogleAuthProvider,
-  signInWithPopup, signOut,
+  signInWithPopup, signInWithRedirect, getRedirectResult, signOut,
 } from 'firebase/auth'
 import { getStorage } from 'firebase/storage'
 
@@ -23,7 +23,9 @@ export const storage = getStorage(app)
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider)
-export const signOutUser      = () => signOut(auth)
+export const signInWithGoogle         = () => signInWithPopup(auth, googleProvider)
+export const signInWithGoogleRedirect = () => signInWithRedirect(auth, googleProvider)
+export const getGoogleRedirectResult  = () => getRedirectResult(auth)
+export const signOutUser              = () => signOut(auth)
 
 export default app
