@@ -24,28 +24,27 @@ export function AuthProvider({ children }) {
   // ── On mount: sync Firebase auth state ───────────────────────────────────
   // If a stored backend token exists, try to load the profile silently.
   // If the Firebase session also exists, we're fully authenticated.
+  // ── The backend JWT (localStorage) is the REAL session ───────────────────
+  // On mount, if a token exists we validate it by loading the profile. This is
+  // what keeps the user logged in across refreshes and after a redirect sign-in,
+  // independent of Firebase's cross-domain persistence quirks.
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser)
-        // Try to load profile using stored backend token
-        const stored = getStoredToken()
-        if (stored) {
-          try {
-            const { data } = await authAPI.getProfile()
-            setProfile(data)
-          } catch {
-            // Token expired or invalid — clear it; user stays logged in via Firebase
-            clearToken()
-          }
-        }
-      } else {
-        setUser(null)
-        setProfile(null)
-        clearToken()
-      }
-      setLoading(false)
-    })
+    let active = true
+    if (!getStoredToken()) { setLoading(false); return }
+    authAPI.getProfile()
+      .then(({ data }) => { if (active) setProfile(data) })
+      .catch(() => { clearToken() })            // token expired/invalid → logged out
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  // ── Track the Firebase user separately (used only for token exchange) ─────
+  // IMPORTANT: never clear the backend token here. A redirect sign-in can
+  // briefly report a null Firebase user, and clearing the token on that event
+  // is exactly what bounced the user back to the landing page. Logout() is the
+  // only place that clears the session.
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => setUser(firebaseUser || null))
     return unsub
   }, [])
 
@@ -147,7 +146,7 @@ export function AuthProvider({ children }) {
       openAuthModal, closeAuthModal,
       registerEmail, loginEmail, loginGoogle,
       logout,
-      isAuthenticated: !!user && !!getStoredToken(),
+      isAuthenticated: !!getStoredToken(),
     }}>
       {children}
     </AuthContext.Provider>

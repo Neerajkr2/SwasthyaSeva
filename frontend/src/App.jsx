@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import { getStoredToken } from './services/api'
 import ErrorBoundary  from './components/common/ErrorBoundary'
 import LoadingSpinner from './components/common/LoadingSpinner'
 
@@ -27,17 +28,19 @@ const NotFoundPage        = lazy(() => import('./pages/NotFoundPage'))
 
 // ── Protected Route Wrapper ────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { loading } = useAuth()
   if (loading) return <LoadingSpinner fullScreen />
-  if (!user)   return <Navigate to="/" replace />
+  // Auth = presence of our backend JWT (the real session), not the Firebase
+  // user object, which may not survive a cross-domain redirect sign-in.
+  if (!getStoredToken()) return <Navigate to="/" replace />
   return children
 }
 
 // ── Admin Route Wrapper (server-side enforces; this is a UX guard) ─────────
 function AdminRoute({ children }) {
-  const { user, profile, loading } = useAuth()
+  const { profile, loading } = useAuth()
   if (loading) return <LoadingSpinner fullScreen />
-  if (!user)   return <Navigate to="/" replace />
+  if (!getStoredToken()) return <Navigate to="/" replace />
   if (profile && !['admin', 'superadmin'].includes(profile.role)) {
     return <Navigate to="/dashboard" replace />
   }
