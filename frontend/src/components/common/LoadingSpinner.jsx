@@ -1,5 +1,5 @@
 // src/components/common/LoadingSpinner.jsx
-export default function LoadingSpinner({ fullScreen = false, size = 40 }) {
+export default function LoadingSpinner({ fullScreen = false, size = 40, label = 'Loading…' }) {
   const spinner = (
     <div className="flex flex-col items-center gap-3">
       <svg
@@ -14,7 +14,7 @@ export default function LoadingSpinner({ fullScreen = false, size = 40 }) {
           fill="none" stroke="#0ea5e9" strokeWidth="4" strokeLinecap="round"
         />
       </svg>
-      <span className="text-sm text-slate-400 font-medium">Loading…</span>
+      <span className="text-sm text-slate-400 font-medium">{label}</span>
     </div>
   )
 

@@ -1,5 +1,6 @@
 // frontend/src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -16,6 +17,16 @@ export function AuthProvider({ children }) {
   const [user,      setUser]      = useState(null)   // Firebase user object
   const [profile,   setProfile]   = useState(null)   // Our backend profile
   const [loading,   setLoading]   = useState(true)
+
+  const navigate = useNavigate()
+
+  // True only while we're finishing a Google *redirect* sign-in on return to
+  // the app (the path LinkedIn / in-app browsers take). Initialised
+  // synchronously from a marker set just before redirecting, so the landing
+  // page never flashes — we show a "Completing sign-in…" loader instead.
+  const [finishingOAuth, setFinishingOAuth] = useState(() => {
+    try { return sessionStorage.getItem('ss_oauth_pending') === '1' } catch { return false }
+  })
 
   // ── Auth modal state ──────────────────────────────────────────────────────
   const [authModal, setAuthModal] = useState(false)
@@ -70,10 +81,18 @@ export function AuthProvider({ children }) {
         } catch { /* ignore */ }
         const { data } = await authAPI.loginWithGoogle(idToken, captchaToken)
         handleAuthResponse(data)
-        if (data?.access_token) window.location.replace('/dashboard')
+        // Client-side navigation (NOT window.location.replace) — avoids a full
+        // page reload AND a redundant /auth/me round-trip. The profile is
+        // already in state from the response above, so the dashboard renders
+        // immediately. This is the main win against the post-login delay.
+        if (data?.access_token) navigate('/dashboard', { replace: true })
       })
       .catch((e) => console.warn('Google redirect sign-in did not complete:', e?.code || e))
-  }, [handleAuthResponse])
+      .finally(() => {
+        try { sessionStorage.removeItem('ss_oauth_pending') } catch { /* ignore */ }
+        setFinishingOAuth(false)
+      })
+  }, [handleAuthResponse, navigate])
 
   // ── Email/Password Sign-up ────────────────────────────────────────────────
   const registerEmail = useCallback(async ({ name, email, password, captchaToken }) => {
@@ -119,7 +138,10 @@ export function AuthProvider({ children }) {
       const code = err?.code || ''
       if (['auth/popup-blocked', 'auth/cancelled-popup-request',
            'auth/operation-not-supported-in-this-environment'].includes(code)) {
-        try { sessionStorage.setItem('ss_pending_captcha', captchaToken || '') } catch { /* ignore */ }
+        try {
+          sessionStorage.setItem('ss_pending_captcha', captchaToken || '')
+          sessionStorage.setItem('ss_oauth_pending', '1')  // → show "Completing sign-in…" on return
+        } catch { /* ignore */ }
         await signInWithGoogleRedirect()
         return  // page navigates to Google; result handled on return
       }
@@ -142,6 +164,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       user, profile, loading,
+      finishingOAuth,
       authModal, authTab,
       openAuthModal, closeAuthModal,
       registerEmail, loginEmail, loginGoogle,

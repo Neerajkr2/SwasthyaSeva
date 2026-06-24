@@ -49,6 +49,13 @@ function AdminRoute({ children }) {
 
 // ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
+  const { finishingOAuth } = useAuth()
+
+  // Returning from a Google *redirect* sign-in lands on "/". Show a branded
+  // loader instead of the landing page so the user gets clear feedback (and no
+  // flash) while the token exchange completes — then we navigate to /dashboard.
+  if (finishingOAuth) return <LoadingSpinner fullScreen label="Completing sign-in…" />
+
   return (
     <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner fullScreen />}>
