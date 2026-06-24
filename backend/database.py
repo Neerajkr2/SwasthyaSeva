@@ -42,6 +42,20 @@ async def get_db():
             await session.close()
 
 
+async def check_db_connection() -> bool:
+    """
+    Lightweight connectivity probe used by the /ready endpoint.
+    Returns True if a `SELECT 1` succeeds, False otherwise — never raises.
+    """
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception as exc:  # noqa: BLE001 — probe must never raise
+        logger.warning("DB connectivity check failed: %s", exc)
+        return False
+
+
 async def create_tables():
     """
     Create any tables that don't exist yet AND sync columns for tables

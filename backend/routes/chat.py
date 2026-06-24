@@ -45,6 +45,7 @@ from services.claude_service import (
     get_ai_response,
 )
 from services.rag_service import is_personal_symptom_query
+from ml.registry import get_drug_checker, get_knowledge_retriever
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -176,8 +177,11 @@ def _local_health_response(message: str, request: Request) -> str:
     msg_lower = (message or "").lower()
     parts: list[str] = []
 
-    drug_checker = getattr(request.app.state, "drug_checker", None)
-    retriever = getattr(request.app.state, "knowledge_retriever", None)
+    try:
+        drug_checker = get_drug_checker(request.app)
+    except Exception:               # keep the fallback alive even if the model can't load
+        drug_checker = None
+    retriever = get_knowledge_retriever(request.app)
 
     # ── (1) Drug-interaction query ─────────────────────────────────────────
     is_drug_query = any(k in msg_lower for k in _DRUG_KEYWORDS)
@@ -320,7 +324,7 @@ async def send_message(
 
     # 5. RAG retrieval — pull relevant healthcare articles for grounding
     knowledge_context = ""
-    retriever = getattr(request.app.state, "knowledge_retriever", None)
+    retriever = get_knowledge_retriever(request.app)
     if retriever and message and message.strip():
         try:
             articles = retriever.retrieve(message, k=3)

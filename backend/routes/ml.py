@@ -15,6 +15,10 @@ from schemas.schemas import (
 )
 from services.auth_service import get_current_user_id
 from services.claude_service import get_ai_response
+from ml.registry import (
+    get_disease_predictor, get_symptom_analyzer,
+    get_drug_checker, get_nb_predictor,
+)
 
 logger   = logging.getLogger(__name__)
 router   = APIRouter()
@@ -22,11 +26,12 @@ MAX_FILE = 10 * 1024 * 1024
 ALLOWED  = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 
 
-def _predictor(r):    return r.app.state.disease_predictor
-def _analyzer(r):     return r.app.state.symptom_analyzer
-def _checker(r):      return r.app.state.drug_checker
+# Models load lazily on first use (see ml/registry.py); these stay thin wrappers.
+def _predictor(r):    return get_disease_predictor(r.app)
+def _analyzer(r):     return get_symptom_analyzer(r.app)
+def _checker(r):      return get_drug_checker(r.app)
 def _nb(r):
-    nb = r.app.state.nb_predictor
+    nb = get_nb_predictor(r.app)
     if nb is None:
         raise HTTPException(503, "NB Predictor is unavailable — model files may be missing.")
     return nb
