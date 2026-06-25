@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiX } from 'react-icons/fi'
+import { FiX, FiVolumeX } from 'react-icons/fi'
 
 /**
  * Reusable, accessible video modal — for product demos, tutorials,
@@ -27,6 +27,7 @@ export default function VideoModal({ open, onClose, src, poster, title = 'Produc
   const restoreRef = useRef(null)              // element to refocus on close
   const onCloseRef = useRef(onClose)
   const [loading, setLoading] = useState(true)
+  const [muted, setMuted]     = useState(true)
 
   useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
@@ -67,9 +68,11 @@ export default function VideoModal({ open, onClose, src, poster, title = 'Produc
     if (!v) return
     if (open) {
       setLoading(true)
+      setMuted(true)
+      v.muted = true              // muted autoplay is permitted on every browser
       v.currentTime = 0
       const p = v.play()
-      if (p && p.catch) p.catch(() => {/* autoplay blocked → controls available */})
+      if (p && p.catch) p.catch(() => {/* extremely rare — controls available */})
     } else {
       v.pause()
     }
@@ -78,6 +81,14 @@ export default function VideoModal({ open, onClose, src, poster, title = 'Produc
   const onBackdrop = useCallback((e) => {
     if (e.target === e.currentTarget) onClose()
   }, [onClose])
+
+  const unmute = useCallback(() => {
+    const v = videoRef.current
+    if (!v) return
+    v.muted = false
+    if (v.paused) v.play().catch(() => {})
+    setMuted(false)
+  }, [])
 
   return createPortal(
     <AnimatePresence>
@@ -120,11 +131,13 @@ export default function VideoModal({ open, onClose, src, poster, title = 'Produc
                 poster={poster}
                 controls
                 playsInline
+                muted
                 preload="metadata"
                 aria-label={title}
                 onLoadedData={() => setLoading(false)}
                 onWaiting={() => setLoading(true)}
                 onPlaying={() => setLoading(false)}
+                onVolumeChange={() => { const v = videoRef.current; if (v) setMuted(v.muted) }}
                 className="absolute inset-0 h-full w-full"
               />
 
@@ -133,6 +146,18 @@ export default function VideoModal({ open, onClose, src, poster, title = 'Produc
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30">
                   <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-white/30 border-t-white" />
                 </div>
+              )}
+
+              {/* Unmute affordance — autoplays muted; one tap turns sound on */}
+              {muted && !loading && (
+                <button
+                  onClick={unmute}
+                  aria-label="Unmute video"
+                  className="absolute top-2.5 left-2.5 z-20 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-colors hover:bg-black/75 focus:outline-none focus:ring-2 focus:ring-white/80"
+                >
+                  <FiVolumeX size={14} />
+                  Tap to unmute
+                </button>
               )}
 
               {/* Close — always visible over the top-right corner */}
