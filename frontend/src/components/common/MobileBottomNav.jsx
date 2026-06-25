@@ -150,7 +150,8 @@ export default function MobileBottomNav() {
             )
           })}
         </div>
-        <div className="h-safe-area-inset-bottom" />
+        {/* Honor the device safe area (iPhone home indicator) below the nav */}
+        <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
       </nav>
     </>
   )

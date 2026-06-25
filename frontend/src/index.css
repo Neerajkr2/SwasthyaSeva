@@ -42,6 +42,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Responsive safety nets (apply app-wide) ────────────────────────────────── */
+/* Media never overflows its container on small screens */
+img, video, canvas { max-width: 100%; height: auto; }
+/* Honor device safe areas (notch / home indicator) — use on fixed bottom UI */
+.pb-safe { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem); }
+
 /* Heading tags use Sora via the utility class applied in JSX */
 .font-display {
   font-family: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif !important;

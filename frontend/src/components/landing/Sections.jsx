@@ -167,14 +167,14 @@ const StatCard = memo(function StatCard({ s, delay, inView }) {
     <motion.div
       {...popIn(delay)}
       animate={inView ? popIn(delay).animate : undefined}
-      className="text-center py-8 px-4 rounded-3xl"
+      className="text-center py-6 px-3 sm:py-8 sm:px-4 rounded-3xl"
       style={{ background: s.bg }}
     >
-      <div className="text-5xl mb-3" aria-hidden="true">{s.emoji}</div>
-      <div className="text-4xl sm:text-5xl font-bold mb-2 font-display" style={{ color: s.color }}>
+      <div className="text-4xl sm:text-5xl mb-2 sm:mb-3" aria-hidden="true">{s.emoji}</div>
+      <div className="text-2xl sm:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2 font-display leading-none tabular-nums" style={{ color: s.color }}>
         <AnimatedCounter end={s.value} suffix={s.suffix} inView={inView} />
       </div>
-      <div className="text-sm font-medium" style={{ color: '#4a5568' }}>{s.label}</div>
+      <div className="text-xs sm:text-sm font-medium" style={{ color: '#4a5568' }}>{s.label}</div>
     </motion.div>
   )
 })

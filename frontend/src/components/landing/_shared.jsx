@@ -112,10 +112,10 @@ export const Section = memo(function Section({
     <section
       id={id}
       ref={innerRef}
-      className="py-20 lg:py-28"
+      className="py-14 sm:py-20 lg:py-28"
       style={{ background }}
     >
-      <div className={`mx-auto px-6 ${containerClassName}`}>
+      <div className={`mx-auto px-4 sm:px-6 ${containerClassName}`}>
         {children}
       </div>
     </section>

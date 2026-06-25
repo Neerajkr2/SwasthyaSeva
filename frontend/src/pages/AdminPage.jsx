@@ -260,7 +260,7 @@ function UserRow({ user, onRoleChange, onToggleActive, onDelete, isCurrentUser }
               ) : detail ? (
                 <div className="space-y-3">
                   {/* Stats row */}
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { v: detail.chat_count,    l: 'Chats' },
                       { v: detail.message_count, l: 'Messages' },
