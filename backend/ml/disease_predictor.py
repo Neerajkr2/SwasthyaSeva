@@ -19,7 +19,18 @@ from typing import Dict, Any
 # the class when deserializing the saved .joblib files.
 # (joblib pickle stores objects by their module path; without this import
 # the load raises: AttributeError: Can't get attribute 'EnsembleModel')
+import sys
+from ml import ensemble_model as _ensemble_model
 from ml.ensemble_model import EnsembleModel  # noqa: F401  (needed for pickle)
+
+# The saved .joblib files were pickled when EnsembleModel lived in the TOP-LEVEL
+# module `ensemble_model` (training was run as `python ml/train_models.py`, which
+# imports `from ensemble_model import EnsembleModel`). The pickle therefore
+# references "ensemble_model.EnsembleModel". Alias that name to this same module
+# so joblib.load() can resolve the class. Without this, loading fails with
+# "No module named 'ensemble_model'" and the predictor silently falls back to
+# the heuristic scorer instead of using the trained RF+GBM ensemble.
+sys.modules.setdefault("ensemble_model", _ensemble_model)
 
 logger = logging.getLogger(__name__)
 
