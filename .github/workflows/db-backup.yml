@@ -1,0 +1,60 @@
+name: Database Backup
+
+# Daily backup of the Supabase Postgres `public` schema (the app's data:
+# users, user_vitals, chat_sessions, chat_messages, medical_reports).
+#
+# Why this exists:
+#   • Supabase Free has NO automatic backups — this is the recovery point.
+#   • Each run connects to the DB, which also helps keep the free project
+#     from auto-pausing on inactivity (the original outage cause).
+#
+# Setup (one-time): add a repository secret named SUPABASE_DB_URL containing
+# the **Session pooler** connection string (port 5432), e.g.
+#   postgresql://postgres.yikfsxwkunwkyjprmpas:YOUR_PASSWORD@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+# Settings → Secrets and variables → Actions → New repository secret.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'      # every day at 02:00 UTC (07:30 IST)
+  workflow_dispatch: {}       # also lets you run it on demand from the Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      # pg_dump must be >= the server's Postgres version, so install the
+      # official PostgreSQL 17 client rather than the runner's older default.
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump the public schema
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set."; exit 1
+          fi
+          STAMP="$(date -u +%Y-%m-%d_%H%M%SZ)"
+          echo "Backing up at ${STAMP} (UTC)…"
+          pg_dump "$DATABASE_URL" \
+            --schema=public \
+            --no-owner --no-privileges \
+            --clean --if-exists \
+            | gzip -9 > "backup_${STAMP}.sql.gz"
+          SIZE="$(stat -c%s "backup_${STAMP}.sql.gz")"
+          echo "Wrote backup_${STAMP}.sql.gz (${SIZE} bytes)"
+          # Fail loudly if the dump came back suspiciously tiny (e.g. auth failed).
+          if [ "$SIZE" -lt 200 ]; then
+            echo "::error::Backup file is suspiciously small — the dump likely failed."; exit 1
+          fi
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: backup_*.sql.gz
+          retention-days: 30
