@@ -8,10 +8,12 @@ name: Database Backup
 #   • Each run connects to the DB, which also helps keep the free project
 #     from auto-pausing on inactivity (the original outage cause).
 #
-# Setup (one-time): add a repository secret named SUPABASE_DB_URL containing
-# the **Session pooler** connection string (port 5432), e.g.
-#   postgresql://postgres.yikfsxwkunwkyjprmpas:YOUR_PASSWORD@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+# Setup (one-time): add a repository secret named SUPABASE_DB_PASSWORD with
+# ONLY your database password (the raw value — no URL, no encoding needed).
 # Settings → Secrets and variables → Actions → New repository secret.
+#
+# The host/user/db below are NOT secret (the project ref is already public).
+# If your Supabase region ever changes, update the --host line accordingly.
 
 on:
   schedule:
@@ -33,14 +35,22 @@ jobs:
 
       - name: Dump the public schema
         env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # Password via PGPASSWORD (raw value, no URL encoding). Host/user/db
+          # are passed as flags so there is NO connection URL to misparse.
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGSSLMODE: require                       # Supabase requires SSL
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "::error::SUPABASE_DB_URL secret is not set."; exit 1
+          set -o pipefail
+          if [ -z "$PGPASSWORD" ]; then
+            echo "::error::SUPABASE_DB_PASSWORD secret is not set."; exit 1
           fi
           STAMP="$(date -u +%Y-%m-%d_%H%M%SZ)"
           echo "Backing up at ${STAMP} (UTC)…"
-          pg_dump "$DATABASE_URL" \
+          pg_dump \
+            --host=aws-0-ap-south-1.pooler.supabase.com \
+            --port=5432 \
+            --username=postgres.yikfsxwkunwkyjprmpas \
+            --dbname=postgres \
             --schema=public \
             --no-owner --no-privileges \
             --clean --if-exists \
