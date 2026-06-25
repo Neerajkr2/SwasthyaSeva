@@ -1,9 +1,10 @@
 // src/components/landing/Hero.jsx
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { FiArrowRight, FiPlay, FiStar } from 'react-icons/fi'
 import { useAuth } from '../../hooks/useAuth'
+import VideoModal from '../common/VideoModal'
 import { fadeUp } from './_shared'
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -143,12 +144,12 @@ const FriendlyMockup = memo(function FriendlyMockup() {
 export default function Hero() {
   const { isAuthenticated, openAuthModal } = useAuth()
   const navigate = useNavigate()
+  const [videoOpen, setVideoOpen] = useState(false)
 
   const handlePrimaryCTA = () =>
     isAuthenticated ? navigate('/symptoms') : openAuthModal('signup')
 
-  const handleSecondaryCTA = () =>
-    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
+  const handleSecondaryCTA = () => setVideoOpen(true)
 
   return (
     <section className="relative overflow-hidden" style={{ background: '#F8FBFD' }}>
@@ -305,6 +306,14 @@ export default function Hero() {
           </motion.div>
         </div>
       </div>
+
+      <VideoModal
+        open={videoOpen}
+        onClose={() => setVideoOpen(false)}
+        src="/see-how-it-works.mp4"
+        poster="/see-how-it-works-poster.jpg"
+        title="How SwasthyaSeva works"
+      />
     </section>
   )
 }
